@@ -51,6 +51,9 @@ set(OpenGL_GL_PREFERENCE "GLVND")  # Specify GLVND preference
 # Set source files
 set(SOURCES
     src/main.cpp
+    src/Shader.cpp
+    src/Quad.cpp
+    src/UBO.cpp
     # Add other source files here if any
 )
 
@@ -63,6 +66,7 @@ target_include_directories(RayTracer PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${glm_SOURCE_DIR}
     ${glad_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # Link against OpenGL, GLFW, GLM, and GLAD libraries

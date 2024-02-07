@@ -6,6 +6,7 @@ struct Ray {
 };
 
 struct Sphere {
+    int index;
     float center[3];
     float color[3];
     float radius;
@@ -16,10 +17,22 @@ struct Scene {
     Sphere spheres[100];
 };
 
-layout(std430, binding = 0) buffer Data
-{
+struct Camera {
     int resX;
     int resY;
+    float FOV;
+    float position[3];
+    float front[3];
+
+    float moveSpeed;
+    float rotateSpeed;
+    float lastMousePosition[2];
+};
+
+layout(std430, binding = 0) buffer Data
+{
+    bool black;
+    Camera camera;
     Scene scene;
 } data;
 
@@ -75,6 +88,12 @@ vec3 rayTrace(Ray ray) {
                 vec3 sphereColor = vec3(sphere.color[0], sphere.color[1], sphere.color[2]);
                 vec3 spherePosition = vec3(sphere.center[0], sphere.center[1], sphere.center[2]);
 
+                if(data.black){
+                    float red = 1.0f / data.scene.numberOfSpheres * (sphere.index + 1);
+                    closestColor = vec3(red, 0, 0);
+                    continue;
+                }
+
                 vec3 intersectionPoint = ray.origin + ray.direction * closestT;
                 vec3 normal = normalize(intersectionPoint - spherePosition);
                 float intensity = dot(normal, -lightDir);// * 0.5 + 0.5;
@@ -85,16 +104,42 @@ vec3 rayTrace(Ray ray) {
     return closestColor;
 }
 
+mat3 calculateCameraMatrix(vec3 cameraFront) {
+    vec3 cameraUp = vec3(0, 1, 0);
+    vec3 cameraRight = normalize(cross(cameraFront, cameraUp));
+    vec3 newUp = cross(cameraRight, cameraFront);
+    return mat3(cameraRight, newUp, -cameraFront);
+}
+
+vec3 calculateRayDirection(vec2 screenCoords, vec2 cameraResolution, float FOV, vec3 cameraFront) {
+    float aspectRatio = float(cameraResolution.x) / float(cameraResolution.y);
+    vec2 normalizedCoords = screenCoords / cameraResolution;
+    vec2 ndc = vec2(normalizedCoords.x * 2 - 1, normalizedCoords.y * 2 - 1); // -1 -> 1 range
+    ndc.x *= aspectRatio;
+
+    // Calculate ray direction in view space
+    vec3 rayDirectionView = normalize(vec3(ndc.x, ndc.y, -1.0 / tan(0.5 * radians(FOV))));
+    //return rayDirectionView;
+
+    // Transform the ray direction to world space using camera orientation
+    mat3 cameraMatrix = calculateCameraMatrix(cameraFront);
+    vec3 rayDirectionWorld = cameraMatrix * rayDirectionView;
+
+    return rayDirectionWorld;
+}
+
 void main() {
-    float aspectRatio = float(data.resX) / float(data.resY);
+    Camera camera = data.camera;
+    vec2 cameraResolution = vec2(camera.resX, camera.resY);
+    vec3 cameraPosition = vec3(camera.position[0], camera.position[1], camera.position[2]);
+    vec3 cameraFront = vec3(camera.front[0], camera.front[1], camera.front[2]);
+    float cameraFOV = camera.FOV;
+
     vec2 pixelCoords = gl_FragCoord.xy;
-    vec2 normalizedCoords = vec2(pixelCoords.x/data.resX, pixelCoords.y/data.resY); // 0 -> 1 range
-    vec2 minusToPlus = vec2(normalizedCoords.x * 2 - 1, normalizedCoords.y * 2 - 1); // -1 -> 1 range
-    minusToPlus.x *= aspectRatio;
 
     Ray ray;
-    ray.origin = vec3(0.0, 0.0, 2.0);
-    ray.direction = vec3(minusToPlus.x, minusToPlus.y, -1.0);
+    ray.origin = cameraPosition;
+    ray.direction = calculateRayDirection(pixelCoords, cameraResolution, cameraFOV, cameraFront);
 
     vec3 color = rayTrace(ray);
     FragColor = vec4(color, 1.0);

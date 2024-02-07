@@ -54,6 +54,7 @@ set(SOURCES
     src/Shader.cpp
     src/Quad.cpp
     src/UBO.cpp
+    src/Camera.cpp
     # Add other source files here if any
 )
 

@@ -1,26 +1,27 @@
+#include <glad/glad.h>
+
 #include "Quad.h"
 #include "Shader.h"
 #include "UBO.h"
 
-#include <glad/glad.h>
-
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+#include <cassert>
+#include <chrono>
 #include <iostream>
 #include <vector>
-
-#include <chrono>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 GLFWwindow *init(unsigned int width, unsigned int height);
 
-Data data;
-UBO dataUBO;
-
 unsigned int screenWidth = 1200;
 unsigned int screenHeight = 800;
+
+Camera camera( screenWidth, screenHeight, 45.0f);
+Data data;
+UBO dataUBO;
 
 int main() {
 
@@ -28,23 +29,28 @@ int main() {
   Quad quad;
 
   Scene scene;
-  scene.add({{-1, 0, 0}, {0, 0, 1}, 0.5f});
-  scene.add({{0, 0, 0}, {0, 1, 0}, 0.5f});
-  scene.add({{1, 0, 0}, {1, 0, 0}, 0.5f});
-  scene.add({{0, 0, -1}, {1, 1, 0}, 1.0f});
+  scene.add({0, {-2, 0, 0}, {0, 0, 1}, 0.5f});
+  scene.add({0, {0, 0, 0}, {0, 1, 0}, 0.5f});
+  scene.add({0, {1, 0, 0}, {1, 0, 0}, 0.5f});
+  scene.add({0, {0, 0, -1}, {1, 1, 0}, 1.0f});
 
-  data = {screenWidth, screenHeight, scene};
+  data = {true, camera, scene};
   dataUBO.init(data);
   Shader shader("../shaders/shader.vert", "../shaders/shader.frag");
 
   std::chrono::time_point<std::chrono::high_resolution_clock> frameStart,
       frameEnd;
 
+  float ts = 0;
   while (!glfwWindowShouldClose(window)) {
 
     frameStart = std::chrono::high_resolution_clock::now();
 
     processInput(window);
+    if (camera.update(window, ts)) {
+      data.camera = camera;
+      dataUBO.update(data);
+    }
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -60,6 +66,7 @@ int main() {
 
     frameEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> frameDuration = frameEnd - frameStart;
+    ts = frameDuration.count();
     double fps = 1.0 / frameDuration.count();
     // std::cout << "FPS: " << fps << std::endl;
   }
@@ -77,6 +84,14 @@ int main() {
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
+  if(glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS){
+    data.black = true;
+    dataUBO.update(data);
+  }
+  if(glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS){
+    data.black = false;
+    dataUBO.update(data);
+  }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -88,8 +103,8 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
   screenWidth = width;
   screenHeight = height;
-  data.ResolutionX = width;
-  data.ResolutionY = height;
+  data.camera.setWidth(width);
+  data.camera.setHeight(height);
   dataUBO.update(data);
 }
 
@@ -107,8 +122,9 @@ GLFWwindow *init(unsigned int width, unsigned int height) {
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();
-    return nullptr;
+    assert(false);
   }
+  std::cout << "GLFW window created" << std::endl;
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -116,7 +132,8 @@ GLFWwindow *init(unsigned int width, unsigned int height) {
   // ---------------------------------------
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     std::cout << "Failed to initialize GLAD" << std::endl;
-    return nullptr;
+    assert(false);
   }
+  std::cout << "GLAD initialized" << std::endl;
   return window;
 }

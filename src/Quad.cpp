@@ -1,6 +1,5 @@
-#include "Quad.h"
-
 #include <glad/glad.h>
+#include "Quad.h"
 
 Quad::Quad() {
   GLfloat vertices[] = {

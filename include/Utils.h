@@ -1,4 +1,9 @@
+#pragma once
+
+#include "Camera.h"
+
 struct Sphere {
+  int Index;
   float Position[3];
   float Color[3];
   float Size;
@@ -11,15 +16,15 @@ struct Scene {
   Scene() {
     numberOfSpheres = 0;
   }
-  void add(const Sphere& sphere){
+  void add(Sphere sphere){
+    sphere.Index = numberOfSpheres;
     spheres[numberOfSpheres] = sphere;
     numberOfSpheres++;
   }
 };
 
 struct Data {
-  unsigned int ResolutionX;
-  unsigned int ResolutionY;
-
+  bool black;
+  Camera camera;
   Scene scene;
 };

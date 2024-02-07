@@ -1,6 +1,5 @@
-#include "UBO.h"
-
 #include <glad/glad.h>
+#include "UBO.h"
 
 void UBO::init(Data data) {
   glGenBuffers(1, &ID);

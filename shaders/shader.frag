@@ -19,6 +19,22 @@ layout(std430, binding = 0) buffer Data
 
 out vec4 FragColor;
 
+float findMinComponent(vec3 vector) {
+    return min(min(vector.x, vector.y), vector.z);
+}
+float findMaxComponent(vec3 vector) {
+    return max(max(vector.x, vector.y), vector.z);
+}
+bool intersectRayAABB(Ray ray, vec3 maxVert, vec3 minVert) {
+    vec3 invDir = 1.0f / ray.mDirection;
+		vec3 t1 = (minVert - ray.mOrigin) * invDir;
+		vec3 t2 = (maxVert - ray.mOrigin) * invDir;
+
+		float tNear = findMaxComponent(min(t1, t2));
+		float tFar = findMinComponent(max(t1, t2));
+
+		return tNear <= tFar && tFar >= 0;
+}
 
 bool intersectRayTriangle(Ray ray, Triangle triangle, out float outT) {
 		float EPSILON = 0.000001f;
@@ -59,13 +75,32 @@ vec3 rayTrace(Ray ray) {
     float closestT = 1e30;
     vec3 closestColor = vec3(0.0);
 
-    bool black = mData[0] != 0;
+    bool black = mData[1] != 0;
     vec3 lightDir = normalize(vec3(-1));
 
-    int offset = 10;
+    int offset = int(mData[0]);
     int modelCount = int(mData[offset]);
     offset++;
     for (int i = 0; i < modelCount; i++) {
+        int modelIndex = int(mData[offset]);
+        offset++;
+        vec3 maxVert = vec3(mData[offset], mData[offset+1], mData[offset+2]);
+        vec3 minVert = vec3(mData[offset+3], mData[offset+4], mData[offset+5]);
+        offset+=6;
+
+        if(!intersectRayAABB(ray, maxVert, minVert)) {
+            int meshCount = int(mData[offset]);
+            offset++;
+            for (int j = 0; j < meshCount; j++) {
+                int triangleCount = int(mData[offset]);
+                offset++;
+                for (int k = 0; k < triangleCount; k++) {
+                    offset+=18;
+                }
+            }
+            continue;
+        }
+
         int meshCount = int(mData[offset]);
         offset++;
         for (int j = 0; j < meshCount; j++) {
@@ -86,7 +121,8 @@ vec3 rayTrace(Ray ray) {
                         closestT = t;
                         vec3 modelColor = vec3(0,1,0);
                         if(black) {
-                            closestColor = modelColor;
+                            float red = (float(modelIndex)+1) / float(modelCount);
+                            closestColor = vec3(red, 0, 0);
                             continue;
                         }
                         vec3 normal = triangle.mVertices[0].mNormal;
@@ -128,10 +164,10 @@ void main() {
     vec2 pixelCoords = gl_FragCoord.xy;
 
     Ray ray;
-    ray.mOrigin = vec3(mData[4], mData[5], mData[6]);
-    vec2 resolution = vec2(mData[1], mData[2]);
-    float FOV = mData[3];
-    vec3 front = vec3(mData[7], mData[8], mData[9]);
+    ray.mOrigin = vec3(mData[5], mData[6], mData[7]);
+    vec2 resolution = vec2(mData[2], mData[3]);
+    float FOV = mData[4];
+    vec3 front = vec3(mData[8], mData[9], mData[10]);
     ray.mDirection = calculateRayDirection(pixelCoords, resolution, FOV, front);
 
     vec3 color = rayTrace(ray);

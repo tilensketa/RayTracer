@@ -28,7 +28,12 @@ int main() {
   Quad quad;
 
   Scene scene;
-  scene.add({"../models/monkey.obj"});
+  Model monkey("../models/monkey.obj");
+  scene.add(monkey);
+  Model monkeyLeft("../models/monkeyLeft.obj");
+  scene.add(monkeyLeft);
+  Model monkeyRight("../models/monkeyRight.obj");
+  scene.add(monkeyRight);
 
   data.update(camera);
   data.update(scene);

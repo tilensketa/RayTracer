@@ -16,11 +16,17 @@ public:
   const int getIndex() const { return mIndex; }
   const std::vector<Mesh> &getMeshes() const { return mMeshes; }
   const int getMeshCount() const { return mMeshes.size(); }
+  const glm::vec3 &getMaxVert() const { return mMaxVert; }
+  const glm::vec3 &getMinVert() const { return mMinVert; }
 
 private:
-  void ProcessNode(const aiNode *node, const aiScene *scene);
+  void processNode(const aiNode *node, const aiScene *scene);
+  void createBoundingBox();
 
 private:
   int mIndex;
   std::vector<Mesh> mMeshes;
+  Mesh mBoundingBox;
+  glm::vec3 mMaxVert;
+  glm::vec3 mMinVert;
 };

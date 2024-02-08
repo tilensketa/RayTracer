@@ -14,11 +14,13 @@ Model::Model(std::string objPath) {
     std::cout << "Error loading model " << objPath << std::endl;
   } else {
     // Start processing the model data beginning with the root node
-    ProcessNode(scene->mRootNode, scene);
+    processNode(scene->mRootNode, scene);
   }
+
+  createBoundingBox();
 }
 
-void Model::ProcessNode(const aiNode *node, const aiScene *scene) {
+void Model::processNode(const aiNode *node, const aiScene *scene) {
   for (int i = 0; i < node->mNumMeshes; i++) {
 
     int meshIndex = node->mMeshes[i];
@@ -76,6 +78,30 @@ void Model::ProcessNode(const aiNode *node, const aiScene *scene) {
   }
   // Recursively process child nodes
   for (int i = 0; i < node->mNumChildren; i++) {
-    ProcessNode(node->mChildren[i], scene);
+    processNode(node->mChildren[i], scene);
   }
+}
+
+void Model::createBoundingBox() {
+  float max = std::numeric_limits<float>::max();
+  float min = std::numeric_limits<float>::min();
+  glm::vec3 minVert = glm::vec3(max, max, max);
+  glm::vec3 maxVert = glm::vec3(-max, -max, -max);
+  for (int i = 0; i < mMeshes.size(); i++) {
+    const Mesh &mesh = mMeshes[i];
+    for (int j = 0; j < mesh.getTriangleCount(); j++) {
+      const Triangle &triangle = mesh.getTriangles()[j];
+      for (int k = 0; k < 3; k++) {
+        const Vertex &vert = triangle.mVertices[k];
+        minVert.x = glm::min(minVert.x, vert.mPosition.x);
+        minVert.y = glm::min(minVert.y, vert.mPosition.y);
+        minVert.z = glm::min(minVert.z, vert.mPosition.z);
+        maxVert.x = glm::max(maxVert.x, vert.mPosition.x);
+        maxVert.y = glm::max(maxVert.y, vert.mPosition.y);
+        maxVert.z = glm::max(maxVert.z, vert.mPosition.z);
+      }
+    }
+  }
+  mMaxVert = maxVert;
+  mMinVert = minVert;
 }

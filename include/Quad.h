@@ -1,14 +1,14 @@
 #pragma once
 
 class Quad {
-  public:
-    Quad();
+public:
+  Quad();
 
-    void draw();
-    void clean();
+  void draw();
+  void clean();
 
-  private:
-    unsigned int VBO;
-    unsigned int VAO;
-    unsigned int EBO;
+private:
+  unsigned int mVBO;
+  unsigned int mVAO;
+  unsigned int mEBO;
 };

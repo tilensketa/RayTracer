@@ -11,5 +11,5 @@ private:
   std::string readShaderFile(const char *filePath);
 
 private:
-  unsigned int ID;
+  unsigned int mID;
 };

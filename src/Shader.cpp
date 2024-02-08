@@ -1,5 +1,5 @@
-#include <glad/glad.h>
 #include "Shader.h"
+#include <glad/glad.h>
 
 #include <fstream>
 #include <iostream>
@@ -39,15 +39,15 @@ Shader::Shader(const char *vertexShaderPath, const char *fragmentShaderPath) {
   }
 
   // Link Shaders into Shader Program
-  ID = glCreateProgram();
-  glAttachShader(ID, vertexShader);
-  glAttachShader(ID, fragmentShader);
-  glLinkProgram(ID);
+  mID = glCreateProgram();
+  glAttachShader(mID, vertexShader);
+  glAttachShader(mID, fragmentShader);
+  glLinkProgram(mID);
 
   // Check for linking errors
-  glGetProgramiv(ID, GL_LINK_STATUS, &success);
+  glGetProgramiv(mID, GL_LINK_STATUS, &success);
   if (!success) {
-    glGetProgramInfoLog(ID, 512, NULL, infoLog);
+    glGetProgramInfoLog(mID, 512, NULL, infoLog);
     std::cout << "Shader Program Linking Failed:\n" << infoLog << std::endl;
   }
 
@@ -72,6 +72,4 @@ std::string Shader::readShaderFile(const char *filePath) {
   return buffer.str();
 }
 
-void Shader::use() {
-  glUseProgram(ID);
-}
+void Shader::use() { glUseProgram(mID); }

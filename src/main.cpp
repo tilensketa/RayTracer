@@ -1,11 +1,11 @@
 #include <glad/glad.h>
 
+#include "Model.h"
 #include "Quad.h"
 #include "Shader.h"
 #include "UBO.h"
 
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 
 #include <cassert>
 #include <chrono>
@@ -16,25 +16,23 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 GLFWwindow *init(unsigned int width, unsigned int height);
 
-unsigned int screenWidth = 1200;
-unsigned int screenHeight = 800;
+int screenWidth = 1200;
+int screenHeight = 800;
 
-Camera camera( screenWidth, screenHeight, 45.0f);
+Camera camera(screenWidth, screenHeight, 45.0f);
 Data data;
 UBO dataUBO;
 
 int main() {
-
   GLFWwindow *window = init(screenWidth, screenHeight);
   Quad quad;
 
   Scene scene;
-  scene.add({0, {-2, 0, 0}, {0, 0, 1}, 0.5f});
-  scene.add({0, {0, 0, 0}, {0, 1, 0}, 0.5f});
-  scene.add({0, {1, 0, 0}, {1, 0, 0}, 0.5f});
-  scene.add({0, {0, 0, -1}, {1, 1, 0}, 1.0f});
+  scene.add({"../models/monkey.obj"});
 
-  data = {true, camera, scene};
+  data.update(camera);
+  data.update(scene);
+
   dataUBO.init(data);
   Shader shader("../shaders/shader.vert", "../shaders/shader.frag");
 
@@ -48,7 +46,7 @@ int main() {
 
     processInput(window);
     if (camera.update(window, ts)) {
-      data.camera = camera;
+      data.update(camera);
       dataUBO.update(data);
     }
 
@@ -68,7 +66,7 @@ int main() {
     std::chrono::duration<double> frameDuration = frameEnd - frameStart;
     ts = frameDuration.count();
     double fps = 1.0 / frameDuration.count();
-    // std::cout << "FPS: " << fps << std::endl;
+    std::cout << "FPS: " << fps << std::endl;
   }
 
   quad.clean();
@@ -84,14 +82,6 @@ int main() {
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
-  if(glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS){
-    data.black = true;
-    dataUBO.update(data);
-  }
-  if(glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS){
-    data.black = false;
-    dataUBO.update(data);
-  }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -103,8 +93,8 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
   screenWidth = width;
   screenHeight = height;
-  data.camera.setWidth(width);
-  data.camera.setHeight(height);
+  camera.setResolution(width, height);
+  data.update(camera);
   dataUBO.update(data);
 }
 

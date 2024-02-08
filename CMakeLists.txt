@@ -44,6 +44,19 @@ if(NOT glad_POPULATED)
     add_subdirectory(${glad_SOURCE_DIR} ${glad_BINARY_DIR})
 endif()
 
+# Use FetchContent to download and include Assimp
+FetchContent_Declare(
+  assimp
+  GIT_REPOSITORY https://github.com/assimp/assimp.git
+  GIT_TAG v5.0.1
+)
+
+FetchContent_GetProperties(assimp)
+if(NOT assimp_POPULATED)
+  FetchContent_Populate(assimp)
+  add_subdirectory(${assimp_SOURCE_DIR} ${assimp_BINARY_DIR})
+endif()
+
 # Find necessary packages
 find_package(OpenGL REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")  # Specify GLVND preference
@@ -55,27 +68,32 @@ set(SOURCES
     src/Quad.cpp
     src/UBO.cpp
     src/Camera.cpp
+    src/Mesh.cpp
+    src/Model.cpp
+    src/Data.cpp
     # Add other source files here if any
 )
 
 # Add executable
 add_executable(RayTracer ${SOURCES})
 
-# Include directories for OpenGL, GLFW, GLM, and GLAD
+# Include directories for OpenGL, GLFW, GLM, GLAD and Assimp
 target_include_directories(RayTracer PRIVATE
     ${OPENGL_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
     ${glm_SOURCE_DIR}
     ${glad_SOURCE_DIR}/include
+    ${assimp_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Link against OpenGL, GLFW, GLM, and GLAD libraries
+# Link against OpenGL, GLFW, GLM, GLAD and Assimp libraries
 target_link_libraries(RayTracer PRIVATE
     ${OPENGL_LIBRARIES}
     glfw
     ${glm_LIBRARY}
     glad
+    assimp::assimp
 )
 
 # Set C++ standard

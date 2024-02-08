@@ -1,31 +1,32 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+
 #include <glm/glm.hpp>
 
 class Camera {
 public:
   Camera() = default;
-  Camera(unsigned int width, unsigned int height, float fov);
+  Camera(int width, int height, float fov);
 
   bool update(GLFWwindow *window, float ts);
+  void setResolution(int width, int height);
 
-  void setWidth(unsigned int width) { Width = width; }
-  void setHeight(unsigned int height) { Height = height; }
+  const float getConfig() const { return mBlack; }
+  const glm::ivec2 &getResolution() const { return mResolution; }
+  const float getFOV() const { return mFOV; }
+  const glm::vec3 &getPosition() const { return mPosition; }
+  const glm::vec3 &getFront() const { return mFront; }
 
 private:
-  void recalculatePosition(const glm::vec3 &newPosition);
-  void recalculateRotation(const glm::vec3 &newFrontDirection,
-                           const glm::vec2 &newLastRotation);
+  float mBlack = 1.0f;
+  glm::ivec2 mResolution;
+  float mFOV;
+  glm::vec3 mPosition;
+  glm::vec3 mFront;
+  glm::vec3 mUp;
 
-private:
-  unsigned int Width;
-  unsigned int Height;
-  float FOV;
-  float Position[3];
-  float Front[3];
-
-  float MoveSpeed = 5;
-  float RotateSpeed = 1;
-  float LastMousePosition[2] = {0, 0};
+  float mMoveSpeed = 5;
+  float mRotateSpeed = 1;
+  glm::vec2 mLastMousePosition;
 };

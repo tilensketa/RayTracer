@@ -1,17 +1,17 @@
 #pragma once
 
-#include "Utils.h"
+#include "Data.h"
 
 class UBO {
 public:
   UBO() = default;
-  void init(Data data);
+  void init(const Data &data);
 
-  void update(Data newData);
+  void update(const Data &newData);
   void bind();
   void unbind();
   void clean();
 
 private:
-  unsigned int ID;
+  unsigned int mID;
 };

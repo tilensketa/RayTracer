@@ -5,7 +5,7 @@ mkdir -p build
 cd build
 
 # Run CMake with Ninja generator
-cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. -Wno-dev
 
 # Build using Ninja
 ninja

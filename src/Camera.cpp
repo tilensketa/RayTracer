@@ -10,6 +10,8 @@ Camera::Camera(int width, int height, float fov) {
   mPosition = glm::vec3(0, 0, 5);
   mFront = glm::vec3(0, 0, -1);
   mUp = glm::vec3(0, 1, 0);
+  mAspectRatio = (float)mResolution.x / (float)mResolution.y;
+  recalculateMatrix();
 }
 
 bool Camera::update(GLFWwindow *window, float ts) {
@@ -68,6 +70,7 @@ bool Camera::update(GLFWwindow *window, float ts) {
                                             glm::angleAxis(-yawDelta, mUp)));
     mFront = glm::rotate(q, mFront);
     rotated = true;
+    recalculateMatrix();
   }
 
   if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) {
@@ -87,4 +90,11 @@ bool Camera::update(GLFWwindow *window, float ts) {
 
 void Camera::setResolution(int width, int height) {
   mResolution = glm::ivec2(width, height);
+  mAspectRatio = (float)mResolution.x / (float)mResolution.y;
+}
+
+void Camera::recalculateMatrix() {
+  glm::vec3 cameraRight = glm::normalize(glm::cross(mFront, mUp));
+  glm::vec3 newUp = glm::cross(cameraRight, mFront);
+  mMatrix = glm::mat3(cameraRight, newUp, -mFront);
 }

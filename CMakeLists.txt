@@ -57,6 +57,16 @@ if(NOT assimp_POPULATED)
   add_subdirectory(${assimp_SOURCE_DIR} ${assimp_BINARY_DIR})
 endif()
 
+# Download stb_image_write.h during configuration
+file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h"
+              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/stb_image_write.h"
+              STATUS stb_download_status)
+
+# Check if the download was successful
+if(NOT stb_download_status EQUAL 0)
+    message(FATAL_ERROR "Failed to download stb_image_write.h: ${stb_download_status}")
+endif()
+
 # Find necessary packages
 find_package(OpenGL REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")  # Specify GLVND preference
@@ -77,17 +87,18 @@ set(SOURCES
 # Add executable
 add_executable(RayTracer ${SOURCES})
 
-# Include directories for OpenGL, GLFW, GLM, GLAD and Assimp
+# Include directories for OpenGL, GLFW, GLM, GLAD ,Assimp and stb
 target_include_directories(RayTracer PRIVATE
     ${OPENGL_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
     ${glm_SOURCE_DIR}
     ${glad_SOURCE_DIR}/include
     ${assimp_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Link against OpenGL, GLFW, GLM, GLAD and Assimp libraries
+# Link against OpenGL, GLFW, GLM, GLAD ,Assimp and stb libraries
 target_link_libraries(RayTracer PRIVATE
     ${OPENGL_LIBRARIES}
     glfw

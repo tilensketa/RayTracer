@@ -7,14 +7,17 @@
 
 #include <GLFW/glfw3.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
 #include <cassert>
 #include <chrono>
 #include <iostream>
-#include <vector>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 GLFWwindow *init(unsigned int width, unsigned int height);
+void saveImage(const std::string &filename, int width, int height);
 
 int screenWidth = 1200;
 int screenHeight = 800;
@@ -30,10 +33,10 @@ int main() {
   Scene scene;
   Model monkey("../models/monkey.obj");
   scene.add(monkey);
-  Model monkeyLeft("../models/monkeyLeft.obj");
+  /* Model monkeyLeft("../models/monkeyLeft.obj");
   scene.add(monkeyLeft);
   Model monkeyRight("../models/monkeyRight.obj");
-  scene.add(monkeyRight);
+  scene.add(monkeyRight); */
 
   data.update(camera);
   data.update(scene);
@@ -87,6 +90,9 @@ int main() {
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+    saveImage("../renders/hello.png", camera.getResolution().x,
+              camera.getResolution().y);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -131,4 +137,11 @@ GLFWwindow *init(unsigned int width, unsigned int height) {
   }
   std::cout << "GLAD initialized" << std::endl;
   return window;
+}
+
+void saveImage(const std::string &filename, int width, int height) {
+  std::vector<unsigned char> pixels(width * height * 4);
+  glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+  stbi_flip_vertically_on_write(1);
+  stbi_write_png(filename.c_str(), width, height, 4, pixels.data(), 0);
 }

@@ -10,7 +10,7 @@
 class Model {
 public:
   Model() = default;
-  Model(std::string objPath);
+  Model(const std::string &objPath);
 
   void setIndex(int id) { mIndex = id; }
   const int getIndex() const { return mIndex; }
@@ -26,7 +26,6 @@ private:
 private:
   int mIndex;
   std::vector<Mesh> mMeshes;
-  Mesh mBoundingBox;
   glm::vec3 mMaxVert;
   glm::vec3 mMinVert;
 };

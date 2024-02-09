@@ -17,6 +17,11 @@ public:
   const float getFOV() const { return mFOV; }
   const glm::vec3 &getPosition() const { return mPosition; }
   const glm::vec3 &getFront() const { return mFront; }
+  const float getAspectRatio() const { return mAspectRatio; }
+  const glm::mat3 &getMatrix() const { return mMatrix; }
+
+private:
+  void recalculateMatrix();
 
 private:
   float mBlack = 1.0f;
@@ -25,6 +30,8 @@ private:
   glm::vec3 mPosition;
   glm::vec3 mFront;
   glm::vec3 mUp;
+  float mAspectRatio;
+  glm::mat3 mMatrix;
 
   float mMoveSpeed = 5;
   float mRotateSpeed = 1;

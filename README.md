@@ -12,3 +12,6 @@ Implemented basic sphere/ray intersection, calculating hit position, normal and 
   <img src="./renders/modelLoadingShading.png" width="49%" alt="Shaded">
 </p>
 Added model loading support and option for switching from flat to shaded view.
+
+![fixedNormalsBug](./renders/fixedNormalsBug.png)
+Improved memory layout on GPU and fixed normals.

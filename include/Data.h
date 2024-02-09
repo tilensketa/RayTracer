@@ -4,7 +4,7 @@
 #include "Scene.h"
 
 struct Data {
-  float mData[100000];
+  float mData[10000000];
 
   void update(const Camera &camera);
   void update(const Scene &scene);

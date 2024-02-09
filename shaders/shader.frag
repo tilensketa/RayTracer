@@ -7,10 +7,25 @@ struct Ray {
 struct Vertex {
   vec3 mPosition;
 };
+int sizeOfVertex = 3;
+
 struct Triangle {
   Vertex mVertices[3];
   vec3 mNormal;
 };
+int sizeOfTriangle = 3 + 3 * sizeOfVertex;
+
+struct Material {
+  vec3 mDiffuse;
+  vec3 mAmbient;
+};
+int sizeOfMaterial = 3 + 3;
+
+struct BoundingBox {
+  vec3 mMaxVert;
+  vec3 mMinVert;
+};
+int sizeOfBoundingBox = 3 + 3;
 
 layout(std430, binding = 0) buffer Data
 {
@@ -19,16 +34,65 @@ layout(std430, binding = 0) buffer Data
 
 out vec4 FragColor;
 
+
+vec3 getVec3(inout int offset) {
+  vec3 vector = vec3(mData[offset], mData[offset + 1], mData[offset + 2]);
+  offset += 3;
+  return vector;
+}
+float getFloat(inout int offset) {
+  float value = mData[offset];
+  offset++;
+  return value;
+}
+Triangle getTriangle(inout int offset) {
+  Triangle triangle;
+  for (int l = 0; l < 3; l++) {
+    Vertex vert;
+    vert.mPosition = getVec3(offset);
+    triangle.mVertices[l] = vert;
+  }
+  triangle.mNormal = getVec3(offset);
+  return triangle;
+}
+BoundingBox getAABB(inout int offset) {
+  BoundingBox aabb;
+  aabb.mMaxVert = getVec3(offset);
+  aabb.mMinVert = getVec3(offset);
+  return aabb;
+}
+Material getMaterial(inout int offset) {
+  Material material;
+  material.mDiffuse = getVec3(offset);
+  material.mAmbient = getVec3(offset);
+  return material;
+}
+void skipMesh(inout int offset) {
+  offset+=sizeOfMaterial;
+  int triangleCount = int(getFloat(offset));
+  for (int k = 0; k < triangleCount; k++) {
+    offset+=sizeOfTriangle;
+  }
+}
+void skipModel(inout int offset) {
+  int meshCount = int(getFloat(offset));
+  for (int j = 0; j < meshCount; j++) {
+    offset+=sizeOfBoundingBox;
+    skipMesh(offset);
+  }
+}
+
 float findMinComponent(vec3 vector) {
   return min(min(vector.x, vector.y), vector.z);
 }
 float findMaxComponent(vec3 vector) {
   return max(max(vector.x, vector.y), vector.z);
 }
-bool intersectRayAABB(Ray ray, vec3 maxVert, vec3 minVert) {
+
+bool intersectRayAABB(Ray ray, BoundingBox aabb) {
   vec3 invDir = 1.0f / ray.mDirection;
-  vec3 t1 = (minVert - ray.mOrigin) * invDir;
-  vec3 t2 = (maxVert - ray.mOrigin) * invDir;
+  vec3 t1 = (aabb.mMinVert - ray.mOrigin) * invDir;
+  vec3 t2 = (aabb.mMaxVert - ray.mOrigin) * invDir;
 
   float tNear = findMaxComponent(min(t1, t2));
   float tFar = findMinComponent(max(t1, t2));
@@ -38,26 +102,24 @@ bool intersectRayAABB(Ray ray, vec3 maxVert, vec3 minVert) {
 
 bool intersectRayTriangle(Ray ray, Triangle triangle, out float outT) {
   float EPSILON = 0.000001f;
-  vec3 edge1, edge2, h, s, q;
-  float a, f, u, v;
 
-  edge1 = triangle.mVertices[1].mPosition - triangle.mVertices[0].mPosition;
-  edge2 = triangle.mVertices[2].mPosition - triangle.mVertices[0].mPosition;
-  h = cross(ray.mDirection, edge2);
-  a = dot(edge1, h);
+  vec3 edge1 = triangle.mVertices[1].mPosition - triangle.mVertices[0].mPosition;
+  vec3 edge2 = triangle.mVertices[2].mPosition - triangle.mVertices[0].mPosition;
+  vec3 h = cross(ray.mDirection, edge2);
+  float a = dot(edge1, h);
 
   if (a > -EPSILON && a < EPSILON)
     return false;
 
-  f = 1.0f / a;
-  s = ray.mOrigin - triangle.mVertices[0].mPosition;
-  u = f * dot(s, h);
+  float f = 1.0f / a;
+  vec3 s = ray.mOrigin - triangle.mVertices[0].mPosition;
+  float u = f * dot(s, h);
 
   if (u < 0.0f || u > 1.0f)
     return false;
 
-  q = cross(s, edge1);
-  v = f * dot(ray.mDirection, q);
+  vec3 q = cross(s, edge1);
+  float v = f * dot(ray.mDirection, q);
 
   if (v < 0.0f || u + v > 1.0f)
     return false;
@@ -71,7 +133,6 @@ bool intersectRayTriangle(Ray ray, Triangle triangle, out float outT) {
 }
 
 vec3 rayTrace(Ray ray) {
-  // Find the closest intersection
   float closestT = 1e30;
   vec3 closestColor = vec3(0.0);
 
@@ -79,56 +140,40 @@ vec3 rayTrace(Ray ray) {
   vec3 lightDir = normalize(vec3(-1));
 
   int offset = int(mData[0]);
-  int modelCount = int(mData[offset]);
-  offset++;
+  int modelCount = int(getFloat(offset));
   for (int i = 0; i < modelCount; i++) {
-    int modelIndex = int(mData[offset]);
-    offset++;
-    vec3 maxVert = vec3(mData[offset], mData[offset+1], mData[offset+2]);
-    vec3 minVert = vec3(mData[offset+3], mData[offset+4], mData[offset+5]);
-    offset+=6;
+    int modelIndex = int(getFloat(offset));
+    BoundingBox modelAABB = getAABB(offset);
 
-    if(!intersectRayAABB(ray, maxVert, minVert)) {
-      int meshCount = int(mData[offset]);
-      offset++;
-      for (int j = 0; j < meshCount; j++) {
-        int triangleCount = int(mData[offset]);
-        offset++;
-        for (int k = 0; k < triangleCount; k++) {
-          offset+=12;
-        }
-      }
+    if(!intersectRayAABB(ray, modelAABB)) {
+      skipModel(offset);
       continue;
     }
 
-    int meshCount = int(mData[offset]);
-    offset++;
+    int meshCount = int(getFloat(offset));
     for (int j = 0; j < meshCount; j++) {
-      int triangleCount = int(mData[offset]);
-      offset++;
+      BoundingBox meshAABB = getAABB(offset);
+
+      if(!intersectRayAABB(ray, meshAABB)) {
+        skipMesh(offset);
+        continue;
+      }
+
+      Material material = getMaterial(offset);
+      int triangleCount = int(getFloat(offset));
       for (int k = 0; k < triangleCount; k++) {
-        Triangle triangle;
-        for (int l = 0; l < 3; l++) {
-          Vertex vert;
-          vert.mPosition = vec3(mData[offset], mData[offset+1], mData[offset+2]);
-          triangle.mVertices[l] = vert;
-          offset+=3;
-        }
-        triangle.mNormal = vec3(mData[offset], mData[offset+1], mData[offset+2]);
-        offset+=3;
+        Triangle triangle = getTriangle(offset);
         float t;
         if (intersectRayTriangle(ray, triangle, t)) {
           if (t < closestT) {
             closestT = t;
-            vec3 modelColor = vec3(0,1,0);
             if(black) {
               float red = (float(modelIndex)+1) / float(modelCount);
               closestColor = vec3(red, 0, 0);
               continue;
             }
-            vec3 normal = triangle.mNormal;
-            float intensity = dot(normal, -lightDir) * 0.5 + 0.5;
-            closestColor = modelColor * intensity;
+            float intensity = dot(triangle.mNormal, -lightDir) * 0.5 + 0.5;
+            closestColor = material.mDiffuse * intensity;
           }
         }
       }
@@ -136,6 +181,7 @@ vec3 rayTrace(Ray ray) {
   }
   return closestColor;
 }
+
 
 vec3 calculateRayDirection(vec2 screenCoords, vec2 cameraResolution, float FOV, float aspectRatio, mat3 cameraMatrix) {
   vec2 normalizedCoords = screenCoords / cameraResolution;

@@ -70,9 +70,11 @@ void Model::processNode(const aiNode *node, const aiScene *scene) {
       }
 
       // Process material information for this mesh
-      // aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+      aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+      Material newMaterial = processNodeMaterial(material);
 
       Mesh newMesh(vertices, indices);
+      newMesh.setMaterial(newMaterial);
       mMeshes.push_back(newMesh);
     }
   }
@@ -82,25 +84,38 @@ void Model::processNode(const aiNode *node, const aiScene *scene) {
   }
 }
 
+Material Model::processNodeMaterial(const aiMaterial *material) {
+  Material newMaterial;
+
+  aiColor3D diffuseColor;
+  if (material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS) {
+    glm::vec3 diffuse =
+        glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
+    newMaterial.setDiffuse(diffuse);
+  }
+  aiColor3D ambientColor;
+  if (material->Get(AI_MATKEY_COLOR_AMBIENT, ambientColor) == AI_SUCCESS) {
+    glm::vec3 ambient =
+        glm::vec3(ambientColor.r, ambientColor.g, ambientColor.b);
+    newMaterial.setAmbient(ambient);
+  }
+  return newMaterial;
+}
+
 void Model::createBoundingBox() {
   float max = std::numeric_limits<float>::max();
-  float min = std::numeric_limits<float>::min();
   glm::vec3 minVert = glm::vec3(max, max, max);
   glm::vec3 maxVert = glm::vec3(-max, -max, -max);
   for (int i = 0; i < mMeshes.size(); i++) {
     const Mesh &mesh = mMeshes[i];
-    for (int j = 0; j < mesh.getTriangleCount(); j++) {
-      const Triangle &triangle = mesh.getTriangles()[j];
-      for (int k = 0; k < 3; k++) {
-        const Vertex &vert = triangle.mVertices[k];
-        minVert.x = glm::min(minVert.x, vert.mPosition.x);
-        minVert.y = glm::min(minVert.y, vert.mPosition.y);
-        minVert.z = glm::min(minVert.z, vert.mPosition.z);
-        maxVert.x = glm::max(maxVert.x, vert.mPosition.x);
-        maxVert.y = glm::max(maxVert.y, vert.mPosition.y);
-        maxVert.z = glm::max(maxVert.z, vert.mPosition.z);
-      }
-    }
+    const glm::vec3& meshMaxVert = mesh.getMaxVert();
+    const glm::vec3& meshMinVert = mesh.getMinVert();
+    minVert.x = glm::min(minVert.x, meshMinVert.x);
+    minVert.y = glm::min(minVert.y, meshMinVert.y);
+    minVert.z = glm::min(minVert.z, meshMinVert.z);
+    maxVert.x = glm::max(maxVert.x, meshMaxVert.x);
+    maxVert.y = glm::max(maxVert.y, meshMaxVert.y);
+    maxVert.z = glm::max(maxVert.z, meshMaxVert.z);
   }
   mMaxVert = maxVert;
   mMinVert = minVert;

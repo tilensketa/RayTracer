@@ -21,6 +21,7 @@ public:
 
 private:
   void processNode(const aiNode *node, const aiScene *scene);
+  Material processNodeMaterial(const aiMaterial *material);
   void createBoundingBox();
 
 private:

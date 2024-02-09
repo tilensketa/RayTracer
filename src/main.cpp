@@ -14,6 +14,9 @@
 #include <chrono>
 #include <iostream>
 
+#define MODELS "../models/"
+#define SHADERS "../shaders/"
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 GLFWwindow *init(unsigned int width, unsigned int height);
@@ -31,18 +34,18 @@ int main() {
   Quad quad;
 
   Scene scene;
-  Model monkey("../models/monkey.obj");
+  Model monkey(MODELS "monkey.obj");
   scene.add(monkey);
-  /* Model monkeyLeft("../models/monkeyLeft.obj");
+  Model monkeyLeft(MODELS "monkeyLeft.obj");
   scene.add(monkeyLeft);
-  Model monkeyRight("../models/monkeyRight.obj");
-  scene.add(monkeyRight); */
+  Model monkeyRight(MODELS "monkeyRight.obj");
+  scene.add(monkeyRight);
 
   data.update(camera);
   data.update(scene);
 
   dataUBO.init(data);
-  Shader shader("../shaders/shader.vert", "../shaders/shader.frag");
+  Shader shader(SHADERS "shader.vert", SHADERS "shader.frag");
 
   std::chrono::time_point<std::chrono::high_resolution_clock> frameStart,
       frameEnd;
@@ -84,9 +87,6 @@ int main() {
   return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this
-// frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
@@ -95,12 +95,7 @@ void processInput(GLFWwindow *window) {
               camera.getResolution().y);
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback
-// function executes
-// ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-  // make sure the viewport matches the new window dimensions; note that width
-  // and height will be significantly larger than specified on retina displays.
   glViewport(0, 0, width, height);
   screenWidth = width;
   screenHeight = height;
@@ -110,15 +105,11 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 GLFWwindow *init(unsigned int width, unsigned int height) {
-  // glfw: initialize and configure
-  // ------------------------------
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
-  // glfw window creation
-  // --------------------
   GLFWwindow *window = glfwCreateWindow(width, height, "RayTracer", NULL, NULL);
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
@@ -129,8 +120,6 @@ GLFWwindow *init(unsigned int width, unsigned int height) {
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-  // glad: load all OpenGL function pointers
-  // ---------------------------------------
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     std::cout << "Failed to initialize GLAD" << std::endl;
     assert(false);

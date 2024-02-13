@@ -12,7 +12,8 @@ public:
   Model() = default;
   Model(const std::string &objPath);
 
-  void setIndex(int id) { mIndex = id; }
+  void setIndex(int id);
+
   const int getIndex() const { return mIndex; }
   const std::vector<Mesh> &getMeshes() const { return mMeshes; }
   const int getMeshCount() const { return mMeshes.size(); }

@@ -10,10 +10,12 @@ struct Vertex {
 int sizeOfVertex = 3;
 
 struct Triangle {
+  int mModelIndex;
+  int mMeshIndex;
   Vertex mVertices[3];
   vec3 mNormal;
 };
-int sizeOfTriangle = 3 + 3 * sizeOfVertex;
+int sizeOfTriangle = 1 + 1 + 3 + 3 * sizeOfVertex;
 
 struct Material {
   vec3 mDiffuse;
@@ -45,8 +47,15 @@ float getFloat(inout int offset) {
   offset++;
   return value;
 }
+int getInt(inout int offset) {
+  int value = int(mData[offset]);
+  offset++;
+  return value;
+}
 Triangle getTriangle(inout int offset) {
   Triangle triangle;
+  triangle.mModelIndex = getInt(offset);
+  triangle.mMeshIndex = getInt(offset);
   for (int l = 0; l < 3; l++) {
     Vertex vert;
     vert.mPosition = getVec3(offset);
@@ -54,6 +63,11 @@ Triangle getTriangle(inout int offset) {
   }
   triangle.mNormal = getVec3(offset);
   return triangle;
+}
+bool getBool(inout int offset) {
+  bool bol = mData[offset] != 0.0f;
+  offset++;
+  return bol;
 }
 BoundingBox getAABB(inout int offset) {
   BoundingBox aabb;
@@ -132,6 +146,7 @@ bool intersectRayTriangle(Ray ray, Triangle triangle, out float outT) {
   return false;
 }
 
+/*
 vec3 rayTrace(Ray ray) {
   float closestT = 1e30;
   vec3 closestColor = vec3(0.0);
@@ -178,6 +193,56 @@ vec3 rayTrace(Ray ray) {
         }
       }
     }
+  }
+  return closestColor;
+}
+*/
+
+bool traverseBVH(Ray ray, int nodeIndex, int constOffset) {
+  int stack[10000];
+  int stackPointer = 0;
+
+  stack[stackPointer++] = nodeIndex;
+
+  while (stackPointer > 0) {
+    int currentIndex = stack[--stackPointer];
+    int offset = int(mData[constOffset + currentIndex]);
+    BoundingBox aabb = getAABB(offset);
+
+    if (intersectRayAABB(ray, aabb)) {
+      bool isLeaf = getBool(offset);
+
+      if (isLeaf) {
+        int triangleCount = getInt(offset);
+        for (int i = 0; i < triangleCount; i++) {
+          Triangle triangle = getTriangle(offset);
+          float t;
+          if (intersectRayTriangle(ray, triangle, t)) {
+            return true;
+          }
+        }
+      } else {
+        int leftIndex = getInt(offset);
+        int rightIndex = getInt(offset);
+        stack[stackPointer++] = rightIndex;
+        stack[stackPointer++] = leftIndex;
+      }
+    }
+  }
+  return false;
+}
+
+vec3 rayTrace(Ray ray) {
+  float closestT = 1e30;
+  vec3 closestColor = vec3(0.0);
+
+  bool black = mData[1] != 0.0f;
+  vec3 lightDir = normalize(vec3(-1));
+
+  int offset = int(mData[0]);
+  int constOffset = offset;
+  if (traverseBVH(ray, 0, constOffset)) {
+    closestColor = vec3(1,0,0);
   }
   return closestColor;
 }

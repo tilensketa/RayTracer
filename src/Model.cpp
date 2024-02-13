@@ -35,9 +35,9 @@ void Model::processNode(const aiNode *node, const aiScene *scene) {
       // Access mesh information
       std::string meshName = mesh->mName.C_Str();
       int numVertices = mesh->mNumVertices;
-      std::cout << "------------------------------" << std::endl;
+      /* std::cout << "------------------------------" << std::endl;
       std::cout << "Mesh name: " << meshName << std::endl;
-      std::cout << "Number of vertices: " << numVertices << std::endl;
+      std::cout << "Number of vertices: " << numVertices << std::endl; */
       name = meshName;
 
       for (int j = 0; j < mesh->mNumVertices; j++) {
@@ -74,6 +74,7 @@ void Model::processNode(const aiNode *node, const aiScene *scene) {
       Material newMaterial = processNodeMaterial(material);
 
       Mesh newMesh(vertices, indices);
+      newMesh.setIndex(meshIndex);
       newMesh.setMaterial(newMaterial);
       mMeshes.push_back(newMesh);
     }
@@ -102,14 +103,23 @@ Material Model::processNodeMaterial(const aiMaterial *material) {
   return newMaterial;
 }
 
+void Model::setIndex(int id) {
+  mIndex = id;
+  for (Mesh &mesh : mMeshes) {
+    for (Triangle &triangle : mesh.modTriangles()) {
+      triangle.mModelIndex = id;
+    }
+  }
+}
+
 void Model::createBoundingBox() {
   float max = std::numeric_limits<float>::max();
   glm::vec3 minVert = glm::vec3(max, max, max);
   glm::vec3 maxVert = glm::vec3(-max, -max, -max);
   for (int i = 0; i < mMeshes.size(); i++) {
     const Mesh &mesh = mMeshes[i];
-    const glm::vec3& meshMaxVert = mesh.getMaxVert();
-    const glm::vec3& meshMinVert = mesh.getMinVert();
+    const glm::vec3 &meshMaxVert = mesh.getMaxVert();
+    const glm::vec3 &meshMinVert = mesh.getMinVert();
     minVert.x = glm::min(minVert.x, meshMinVert.x);
     minVert.y = glm::min(minVert.y, meshMinVert.y);
     minVert.z = glm::min(minVert.z, meshMinVert.z);

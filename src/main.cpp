@@ -42,7 +42,7 @@ int main() {
   scene.add(monkeyRight);
 
   data.update(camera);
-  data.update(scene);
+  data.updateBVH(scene, 100);
 
   dataUBO.init(data);
   Shader shader(SHADERS "shader.vert", SHADERS "shader.frag");
@@ -116,7 +116,7 @@ GLFWwindow *init(unsigned int width, unsigned int height) {
     glfwTerminate();
     assert(false);
   }
-  std::cout << "GLFW window created" << std::endl;
+  // std::cout << "GLFW window created" << std::endl;
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -124,7 +124,7 @@ GLFWwindow *init(unsigned int width, unsigned int height) {
     std::cout << "Failed to initialize GLAD" << std::endl;
     assert(false);
   }
-  std::cout << "GLAD initialized" << std::endl;
+  // std::cout << "GLAD initialized" << std::endl;
   return window;
 }
 

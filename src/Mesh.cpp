@@ -7,6 +7,14 @@ Mesh::Mesh(std::vector<Vertex> vertices, std::vector<int> indices) {
     triangle.mVertices[1] = vertices[indices[i + 1]];
     triangle.mVertices[2] = vertices[indices[i + 2]];
 
+    triangle.mCenter = glm::vec3(0.0f);
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        triangle.mCenter[j] += triangle.mVertices[i].mPosition[j];
+      }
+    }
+    triangle.mCenter /= 3.0f;
+
     mTriangles.push_back(triangle);
   }
   createBoundingBox();
@@ -30,4 +38,11 @@ void Mesh::createBoundingBox() {
   }
   mMaxVert = maxVert;
   mMinVert = minVert;
+}
+
+void Mesh::setIndex(const int id) {
+  mIndex = id;
+  for(Triangle& triangle : mTriangles){
+    triangle.mMeshIndex = mIndex;
+  }
 }

@@ -1,4 +1,5 @@
 #include "Data.h"
+#include <iostream>
 
 void Data::update(const Camera &camera) {
   mData[0] = 18;
@@ -53,6 +54,80 @@ void Data::update(const Scene &scene) {
     }
   }
 }
+void printID(BVHNode *node) {
+  std::cout << node->getID() << " -> ";
+  if (node->getLeft() == nullptr) {
+    std::cout << "-1 ";
+  } else {
+    std::cout << node->getLeftID() << " ";
+  }
+  if (node->getRight() == nullptr) {
+    std::cout << "-1 ";
+  } else {
+    std::cout << node->getRightID() << " ";
+  }
+  std::cout << std::endl;
+  if (node->getRight() == nullptr || node->getLeft() == nullptr)
+    return;
+  printID(node->getLeft());
+  printID(node->getRight());
+}
+
+void Data::updateBVH(const Scene &scene, int maxTrianglesInNode) {
+  std::vector<Triangle> triangles;
+  for (const Model &model : scene.getModels()) {
+    for (const Mesh &mesh : model.getMeshes()) {
+      for (const Triangle &triangle : mesh.getTriangles()) {
+        triangles.push_back(triangle);
+      }
+    }
+  }
+  BVHNode *node = BVHNode::buildBVH(triangles, maxTrianglesInNode);
+  /* std::cout << "--------------" << std::endl;
+  printID(node);
+  std::cout << "--------------" << std::endl; */
+  std::vector<int> sizes = BVHNode::calculateNodeSizes(node);
+  int numberOfNodes = sizes.size();
+  mOffset = (int)mData[0];
+  // add(numberOfNodes);
+  int sum = 0;
+  for (int size : sizes) {
+    add(mOffset + sum + numberOfNodes);
+    sum += size;
+  }
+  updateNode(node);
+  /* for (int i = 0; i < 10000; i++) {
+    std::cout << mData[i] << std::endl;
+  } */
+}
+
+void Data::updateNode(BVHNode *node) {
+  add(node->getMaxVert());
+  add(node->getMinVert());
+  add(node->isLeaf());
+  if (node->isLeaf()) {
+    updateLeafNode(node);
+    return;
+  }
+  add(node->getLeftID());
+  add(node->getRightID());
+
+  updateNode(node->getLeft());
+  updateNode(node->getRight());
+}
+
+void Data::updateLeafNode(BVHNode *node) {
+  add(node->getTriangleCount());
+  for (const Triangle &triangle : node->getTriangles()) {
+    add(triangle.mModelIndex);
+    add(triangle.mMeshIndex);
+    for (int i = 0; i < 3; i++) {
+      const Vertex &vertex = triangle.mVertices[i];
+      add(vertex.mPosition);
+    }
+    add(triangle.mVertices[0].mNormal);
+  }
+}
 
 void Data::add(const glm::vec3 &vec) {
   mData[mOffset] = vec.x;
@@ -67,6 +142,11 @@ void Data::add(const float &value) {
 }
 
 void Data::add(const int &value) {
-  mData[mOffset] = (int)value;
+  mData[mOffset] = (float)value;
+  mOffset++;
+}
+
+void Data::add(const bool bol) {
+  mData[mOffset] = (float)bol;
   mOffset++;
 }

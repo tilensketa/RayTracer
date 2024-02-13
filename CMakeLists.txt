@@ -81,6 +81,7 @@ set(SOURCES
     src/Mesh.cpp
     src/Model.cpp
     src/Data.cpp
+    src/BVHNode.cpp
     # Add other source files here if any
 )
 

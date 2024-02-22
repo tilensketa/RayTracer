@@ -6,8 +6,8 @@
 class BVHNode {
 public:
   BVHNode() = default;
-  static BVHNode *buildBVH(const std::vector<Triangle> &triangles,
-                           int trianglesInLeaf);
+  static BVHNode *buildBVH(const std::vector<Triangle> &triangles, int maxDepth,
+                           int depth);
   static BVHNode *createLeafNode(const std::vector<Triangle> &triangles);
 
   static std::vector<int> calculateNodeSizes(const BVHNode *node);

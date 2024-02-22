@@ -20,6 +20,8 @@ public:
   const glm::vec3 &getMaxVert() const { return mMaxVert; }
   const glm::vec3 &getMinVert() const { return mMinVert; }
 
+  std::vector<Mesh> &modMeshes() { return mMeshes; }
+
 private:
   void processNode(const aiNode *node, const aiScene *scene);
   Material processNodeMaterial(const aiMaterial *material);

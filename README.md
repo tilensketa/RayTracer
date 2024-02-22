@@ -15,3 +15,6 @@ Added model loading support and option for switching from flat to shaded view.
 
 ![fixedNormalsBug](./renders/fixedNormalsBug.png)
 Improved memory layout on GPU and fixed normals.
+
+![bvhWithMaterials](./renders/bvhWithMaterials.png)
+Bounding volume hierarchy with materials. Major fps improvment.

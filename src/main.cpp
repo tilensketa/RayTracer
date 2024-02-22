@@ -36,13 +36,13 @@ int main() {
   Scene scene;
   Model monkey(MODELS "monkey.obj");
   scene.add(monkey);
-  Model monkeyLeft(MODELS "monkeyLeft.obj");
+  /* Model monkeyLeft(MODELS "monkeyLeft.obj");
   scene.add(monkeyLeft);
   Model monkeyRight(MODELS "monkeyRight.obj");
-  scene.add(monkeyRight);
+  scene.add(monkeyRight); */
 
-  data.update(camera);
-  data.updateBVH(scene, 100);
+  data.updateCamera(camera);
+  data.updateScene(scene, 15);
 
   dataUBO.init(data);
   Shader shader(SHADERS "shader.vert", SHADERS "shader.frag");
@@ -57,7 +57,7 @@ int main() {
 
     processInput(window);
     if (camera.update(window, ts)) {
-      data.update(camera);
+      data.updateCamera(camera);
       dataUBO.update(data);
     }
 
@@ -100,7 +100,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   screenWidth = width;
   screenHeight = height;
   camera.setResolution(width, height);
-  data.update(camera);
+  data.updateCamera(camera);
   dataUBO.update(data);
 }
 

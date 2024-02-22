@@ -8,17 +8,23 @@ class Data {
 public:
   Data() = default;
 
-  void update(const Camera &camera);
-  void update(const Scene &scene);
-  void updateBVH(const Scene &scene, int maxTrianglesInNode);
+  void updateCamera(const Camera &camera);
+  void updateScene(Scene &scene, int maxDepth);
 
 private:
   void updateNode(BVHNode *node);
   void updateLeafNode(BVHNode *node);
-  void add(const glm::vec3 &vec);
+
+  void add(const bool bol);
   void add(const float &value);
   void add(const int &value);
-  void add(const bool bol);
+  void add(const glm::vec2 &vec);
+  void add(const glm::ivec2 &vec);
+  void add(const glm::vec3 &vec);
+  void add(const glm::mat3 &mat);
+  void add(const Vertex &vertex);
+  void add(const Triangle &triangle);
+  void add(const Material &material);
 
 private:
   float mData[10000000];

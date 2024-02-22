@@ -1,104 +1,82 @@
 #include "Data.h"
 #include <iostream>
 
-void Data::update(const Camera &camera) {
-  mData[0] = 18;
-  mData[1] = camera.getConfig();
-  mData[2] = camera.getFOV();
-  mData[3] = camera.getAspectRatio();
-  mData[4] = static_cast<float>(camera.getResolution().x);
-  mData[5] = static_cast<float>(camera.getResolution().y);
-  mData[6] = camera.getPosition().x;
-  mData[7] = camera.getPosition().y;
-  mData[8] = camera.getPosition().z;
-  mData[9] = camera.getMatrix()[0][0];
-  mData[10] = camera.getMatrix()[0][1];
-  mData[11] = camera.getMatrix()[0][2];
-  mData[12] = camera.getMatrix()[1][0];
-  mData[13] = camera.getMatrix()[1][1];
-  mData[14] = camera.getMatrix()[1][2];
-  mData[15] = camera.getMatrix()[2][0];
-  mData[16] = camera.getMatrix()[2][1];
-  mData[17] = camera.getMatrix()[2][2];
+#define CAMERA_OFFSET 0
+#define VERTICES_OFFSET 1
+#define BVH_OFFSET 2
+#define MATERIAL_OFFSET 3
+
+void Data::updateCamera(const Camera &camera) {
+  mOffset = 10;
+  mData[CAMERA_OFFSET] = mOffset;
+  add(camera.getConfig());
+  add(camera.getFOV());
+  add(camera.getAspectRatio());
+  add(camera.getResolution());
+  add(camera.getPosition());
+  add(camera.getMatrix());
 }
 
-void Data::update(const Scene &scene) {
-  mOffset = (int)mData[0];
-
-  int modelCount = scene.getModelCount();
-  add(modelCount);
-  for (int i = 0; i < modelCount; i++) {
-    const Model &model = scene.getModels()[i];
-    add(model.getIndex());
-    add(model.getMaxVert());
-    add(model.getMinVert());
-    int meshCount = model.getMeshCount();
-    add(meshCount);
-    for (int j = 0; j < meshCount; j++) {
-      const Mesh &mesh = model.getMeshes()[j];
-      add(mesh.getMaxVert());
-      add(mesh.getMinVert());
-      const Material &material = mesh.getMaterial();
-      add(material.getDiffuse());
-      add(material.getAmbient());
-      int triangleCount = mesh.getTriangleCount();
-      add(triangleCount);
-      for (int k = 0; k < triangleCount; k++) {
-        const Triangle &triangle = mesh.getTriangles()[k];
-        for (int l = 0; l < 3; l++) {
-          const Vertex &vert = triangle.mVertices[l];
-          add(vert.mPosition);
-        }
-        add(triangle.mVertices[0].mNormal);
-      }
-    }
-  }
-}
-void printID(BVHNode *node) {
-  std::cout << node->getID() << " -> ";
-  if (node->getLeft() == nullptr) {
-    std::cout << "-1 ";
-  } else {
-    std::cout << node->getLeftID() << " ";
-  }
-  if (node->getRight() == nullptr) {
-    std::cout << "-1 ";
-  } else {
-    std::cout << node->getRightID() << " ";
-  }
-  std::cout << std::endl;
-  if (node->getRight() == nullptr || node->getLeft() == nullptr)
-    return;
-  printID(node->getLeft());
-  printID(node->getRight());
-}
-
-void Data::updateBVH(const Scene &scene, int maxTrianglesInNode) {
+void Data::updateScene(Scene &scene, int maxDepth) {
   std::vector<Triangle> triangles;
-  for (const Model &model : scene.getModels()) {
-    for (const Mesh &mesh : model.getMeshes()) {
-      for (const Triangle &triangle : mesh.getTriangles()) {
+  std::vector<Vertex> vertices;
+  std::vector<Material> materials;
+  std::vector<int> materialIndexes;
+
+  int indicesOffset = 0;
+  for (Model &model : scene.modModels()) {
+    materialIndexes.push_back(model.getMeshCount());
+    for (Mesh &mesh : model.modMeshes()) {
+      const Material material = mesh.getMaterial();
+      materials.push_back(material);
+      for (Triangle &triangle : mesh.modTriangles()) {
+        triangle.mIndices[0] += indicesOffset;
+        triangle.mIndices[1] += indicesOffset;
+        triangle.mIndices[2] += indicesOffset;
         triangles.push_back(triangle);
       }
+      for (const Vertex &vertex : mesh.getVertices()) {
+        vertices.push_back(vertex);
+      }
+      indicesOffset += mesh.getVerticesCount();
     }
   }
-  BVHNode *node = BVHNode::buildBVH(triangles, maxTrianglesInNode);
-  /* std::cout << "--------------" << std::endl;
-  printID(node);
-  std::cout << "--------------" << std::endl; */
+
+  // Add vertices
+  mData[VERTICES_OFFSET] = mOffset;
+  int verticesCount = vertices.size();
+  for (const Vertex &vertex : vertices) {
+    add(vertex);
+  }
+
+  // Add bvh nodes and triangles
+  BVHNode *node = BVHNode::buildBVH(triangles, maxDepth, 0);
   std::vector<int> sizes = BVHNode::calculateNodeSizes(node);
   int numberOfNodes = sizes.size();
-  mOffset = (int)mData[0];
-  // add(numberOfNodes);
-  int sum = 0;
+
+  mData[BVH_OFFSET] = mOffset;
+  int bvhNodesSum = 0;
+  int bvhOffset = mOffset;
   for (int size : sizes) {
-    add(mOffset + sum + numberOfNodes);
-    sum += size;
+    add(bvhOffset + bvhNodesSum + numberOfNodes);
+    bvhNodesSum += size;
   }
   updateNode(node);
-  /* for (int i = 0; i < 10000; i++) {
-    std::cout << mData[i] << std::endl;
-  } */
+
+  // Add materials
+  mData[MATERIAL_OFFSET] = mOffset;
+  int materialSum = 0;
+  int materialsCount = materialIndexes.size();
+  int matOffset = mOffset;
+  for (int materialIndex : materialIndexes) {
+    add(matOffset + materialSum + materialsCount);
+    materialSum += materialIndex * 6; // 6 -> material size
+  }
+  for (const Material &material : materials) {
+    add(material);
+  }
+
+  std::cout << mOffset << std::endl;
 }
 
 void Data::updateNode(BVHNode *node) {
@@ -119,21 +97,13 @@ void Data::updateNode(BVHNode *node) {
 void Data::updateLeafNode(BVHNode *node) {
   add(node->getTriangleCount());
   for (const Triangle &triangle : node->getTriangles()) {
-    add(triangle.mModelIndex);
-    add(triangle.mMeshIndex);
-    for (int i = 0; i < 3; i++) {
-      const Vertex &vertex = triangle.mVertices[i];
-      add(vertex.mPosition);
-    }
-    add(triangle.mVertices[0].mNormal);
+    add(triangle);
   }
 }
 
-void Data::add(const glm::vec3 &vec) {
-  mData[mOffset] = vec.x;
-  mData[mOffset + 1] = vec.y;
-  mData[mOffset + 2] = vec.z;
-  mOffset += 3;
+void Data::add(const bool bol) {
+  mData[mOffset] = (float)bol;
+  mOffset++;
 }
 
 void Data::add(const float &value) {
@@ -146,7 +116,51 @@ void Data::add(const int &value) {
   mOffset++;
 }
 
-void Data::add(const bool bol) {
-  mData[mOffset] = (float)bol;
-  mOffset++;
+void Data::add(const glm::vec2 &vec) {
+  mData[mOffset] = vec.x;
+  mData[mOffset + 1] = vec.y;
+  mOffset += 2;
+}
+
+void Data::add(const glm::ivec2 &vec) {
+  mData[mOffset] = static_cast<float>(vec.x);
+  mData[mOffset + 1] = static_cast<float>(vec.y);
+  mOffset += 2;
+}
+
+void Data::add(const glm::vec3 &vec) {
+  mData[mOffset] = vec.x;
+  mData[mOffset + 1] = vec.y;
+  mData[mOffset + 2] = vec.z;
+  mOffset += 3;
+}
+
+void Data::add(const glm::mat3 &mat) {
+  mData[mOffset] = mat[0][0];
+  mData[mOffset + 1] = mat[0][1];
+  mData[mOffset + 2] = mat[0][2];
+  mData[mOffset + 3] = mat[1][0];
+  mData[mOffset + 4] = mat[1][1];
+  mData[mOffset + 5] = mat[1][2];
+  mData[mOffset + 6] = mat[2][0];
+  mData[mOffset + 7] = mat[2][1];
+  mData[mOffset + 8] = mat[2][2];
+  mOffset += 9;
+}
+
+void Data::add(const Vertex &vertex) { add(vertex.mPosition); }
+
+void Data::add(const Triangle &triangle) {
+  add(triangle.mModelIndex);
+  add(triangle.mMeshIndex);
+  for (int i = 0; i < 3; i++) {
+    int indice = triangle.mIndices[i];
+    add(indice);
+  }
+  add(triangle.mVertices[0].mNormal);
+}
+
+void Data::add(const Material &material) {
+  add(material.getDiffuse());
+  add(material.getAmbient());
 }

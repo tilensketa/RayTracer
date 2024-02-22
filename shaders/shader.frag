@@ -1,5 +1,10 @@
 #version 430
 
+int CAMERA_OFFSET =  0;
+int VERTICES_OFFSET = 1;
+int BVH_OFFSET = 2;
+int MATERIAL_OFFSET = 3;
+
 struct Ray {
   vec3 mOrigin;
   vec3 mDirection;
@@ -7,27 +12,40 @@ struct Ray {
 struct Vertex {
   vec3 mPosition;
 };
-int sizeOfVertex = 3;
+int vertexSize = 3;
 
 struct Triangle {
   int mModelIndex;
   int mMeshIndex;
+  int mIndices[3];
   Vertex mVertices[3];
   vec3 mNormal;
 };
-int sizeOfTriangle = 1 + 1 + 3 + 3 * sizeOfVertex;
 
 struct Material {
   vec3 mDiffuse;
   vec3 mAmbient;
 };
-int sizeOfMaterial = 3 + 3;
 
 struct BoundingBox {
   vec3 mMaxVert;
   vec3 mMinVert;
 };
-int sizeOfBoundingBox = 3 + 3;
+
+struct Camera {
+  bool mBlack;
+  float mFOV;
+  float mAspectRatio;
+  vec2 mResolution;
+  vec3 mPosition;
+  mat3 mMatrix;
+};
+
+struct HitPayload {
+  bool mHit;
+  Triangle mTriangle;
+  float mClosestHit;
+};
 
 layout(std430, binding = 0) buffer Data
 {
@@ -36,11 +54,10 @@ layout(std430, binding = 0) buffer Data
 
 out vec4 FragColor;
 
-
-vec3 getVec3(inout int offset) {
-  vec3 vector = vec3(mData[offset], mData[offset + 1], mData[offset + 2]);
-  offset += 3;
-  return vector;
+bool getBool(inout int offset) {
+  bool bol = mData[offset] != 0.0f;
+  offset++;
+  return bol;
 }
 float getFloat(inout int offset) {
   float value = mData[offset];
@@ -52,22 +69,41 @@ int getInt(inout int offset) {
   offset++;
   return value;
 }
+vec2 getVec2(inout int offset) {
+  vec2 vector = vec2(mData[offset], mData[offset + 1]);
+  offset += 2;
+  return vector;
+}
+vec3 getVec3(inout int offset) {
+  vec3 vector = vec3(mData[offset], mData[offset + 1], mData[offset + 2]);
+  offset += 3;
+  return vector;
+}
+mat3 getMat3(inout int offset) {
+  mat3 matrix = mat3(mData[offset], mData[offset + 1], mData[offset + 2], mData[offset + 3], mData[offset + 4], mData[offset + 5], mData[offset + 6], mData[offset + 7], mData[offset + 8]);
+  offset += 9;
+  return matrix;
+}
+Vertex getVertex(inout int offset) {
+  Vertex vertex;
+  vertex.mPosition = getVec3(offset);
+  return vertex;
+}
 Triangle getTriangle(inout int offset) {
   Triangle triangle;
   triangle.mModelIndex = getInt(offset);
   triangle.mMeshIndex = getInt(offset);
-  for (int l = 0; l < 3; l++) {
-    Vertex vert;
-    vert.mPosition = getVec3(offset);
-    triangle.mVertices[l] = vert;
-  }
+  triangle.mIndices[0] = getInt(offset);
+  triangle.mIndices[1] = getInt(offset);
+  triangle.mIndices[2] = getInt(offset);
   triangle.mNormal = getVec3(offset);
+
+  int verticesOffset = int(mData[VERTICES_OFFSET]);
+  for (int i = 0; i < 3; i++) {
+    int vertOffset = verticesOffset + triangle.mIndices[i] * vertexSize;
+    triangle.mVertices[i] = getVertex(vertOffset);
+  }
   return triangle;
-}
-bool getBool(inout int offset) {
-  bool bol = mData[offset] != 0.0f;
-  offset++;
-  return bol;
 }
 BoundingBox getAABB(inout int offset) {
   BoundingBox aabb;
@@ -81,19 +117,15 @@ Material getMaterial(inout int offset) {
   material.mAmbient = getVec3(offset);
   return material;
 }
-void skipMesh(inout int offset) {
-  offset+=sizeOfMaterial;
-  int triangleCount = int(getFloat(offset));
-  for (int k = 0; k < triangleCount; k++) {
-    offset+=sizeOfTriangle;
-  }
-}
-void skipModel(inout int offset) {
-  int meshCount = int(getFloat(offset));
-  for (int j = 0; j < meshCount; j++) {
-    offset+=sizeOfBoundingBox;
-    skipMesh(offset);
-  }
+Camera getCamera(inout int offset) {
+  Camera camera;
+  camera.mBlack = getBool(offset);
+  camera.mFOV = getFloat(offset);
+  camera.mAspectRatio = getFloat(offset);
+  camera.mResolution = getVec2(offset);
+  camera.mPosition = getVec3(offset);
+  camera.mMatrix = getMat3(offset);
+  return camera;
 }
 
 float findMinComponent(vec3 vector) {
@@ -146,67 +178,35 @@ bool intersectRayTriangle(Ray ray, Triangle triangle, out float outT) {
   return false;
 }
 
-/*
-vec3 rayTrace(Ray ray) {
-  float closestT = 1e30;
-  vec3 closestColor = vec3(0.0);
-
-  bool black = mData[1] != 0.0f;
-  vec3 lightDir = normalize(vec3(-1));
-
-  int offset = int(mData[0]);
-  int modelCount = int(getFloat(offset));
-  for (int i = 0; i < modelCount; i++) {
-    int modelIndex = int(getFloat(offset));
-    BoundingBox modelAABB = getAABB(offset);
-
-    if(!intersectRayAABB(ray, modelAABB)) {
-      skipModel(offset);
-      continue;
-    }
-
-    int meshCount = int(getFloat(offset));
-    for (int j = 0; j < meshCount; j++) {
-      BoundingBox meshAABB = getAABB(offset);
-
-      if(!intersectRayAABB(ray, meshAABB)) {
-        skipMesh(offset);
-        continue;
-      }
-
-      Material material = getMaterial(offset);
-      int triangleCount = int(getFloat(offset));
-      for (int k = 0; k < triangleCount; k++) {
-        Triangle triangle = getTriangle(offset);
-        float t;
-        if (intersectRayTriangle(ray, triangle, t)) {
-          if (t < closestT) {
-            closestT = t;
-            if(black) {
-              float red = (float(modelIndex)+1) / float(modelCount);
-              closestColor = vec3(red, 0, 0);
-              continue;
-            }
-            float intensity = dot(triangle.mNormal, -lightDir) * 0.5 + 0.5;
-            closestColor = material.mDiffuse * intensity;
-          }
-        }
-      }
-    }
-  }
-  return closestColor;
+HitPayload miss() {
+  HitPayload payload;
+  payload.mHit = false;
+  return payload;
 }
-*/
 
-bool traverseBVH(Ray ray, int nodeIndex, int constOffset) {
-  int stack[10000];
+HitPayload closestHit(float t, Triangle triangle) {
+  HitPayload payload;
+  payload.mHit = true;
+  payload.mClosestHit = t;
+  payload.mTriangle = triangle;
+  return payload;
+}
+
+HitPayload traverseBVH(Ray ray, int nodeIndex) {
+  int BVHOffset = int(mData[BVH_OFFSET]);
+
+  float closestT = 1e30;
+  Triangle closestTriangle;
+  bool hit;
+
+  int stack[1024];
   int stackPointer = 0;
 
   stack[stackPointer++] = nodeIndex;
 
   while (stackPointer > 0) {
     int currentIndex = stack[--stackPointer];
-    int offset = int(mData[constOffset + currentIndex]);
+    int offset = int(mData[BVHOffset + currentIndex]);
     BoundingBox aabb = getAABB(offset);
 
     if (intersectRayAABB(ray, aabb)) {
@@ -218,46 +218,55 @@ bool traverseBVH(Ray ray, int nodeIndex, int constOffset) {
           Triangle triangle = getTriangle(offset);
           float t;
           if (intersectRayTriangle(ray, triangle, t)) {
-            return true;
+            if(t < closestT){
+              closestT = t;
+              closestTriangle = triangle;
+            }
           }
         }
       } else {
         int leftIndex = getInt(offset);
         int rightIndex = getInt(offset);
-        stack[stackPointer++] = rightIndex;
         stack[stackPointer++] = leftIndex;
+        stack[stackPointer++] = rightIndex;
       }
     }
   }
-  return false;
+  if (closestT < 1e30) {
+    return closestHit(closestT, closestTriangle);
+  }
+  return miss();
 }
 
 vec3 rayTrace(Ray ray) {
-  float closestT = 1e30;
   vec3 closestColor = vec3(0.0);
 
-  bool black = mData[1] != 0.0f;
   vec3 lightDir = normalize(vec3(-1));
 
-  int offset = int(mData[0]);
-  int constOffset = offset;
-  if (traverseBVH(ray, 0, constOffset)) {
-    closestColor = vec3(1,0,0);
+  HitPayload payload = traverseBVH(ray, 0);
+  if (payload.mHit) {
+    float intensity = dot(payload.mTriangle.mNormal, -lightDir) * 0.5 + 0.5;
+
+    int materialOffset = int(mData[MATERIAL_OFFSET]);
+    int modelMaterialOffset = int(mData[materialOffset + payload.mTriangle.mModelIndex]);
+    int meshMaterialOffset = modelMaterialOffset + payload.mTriangle.mMeshIndex * 6; // 6 -> material size
+    Material material = getMaterial(meshMaterialOffset);
+    closestColor = material.mDiffuse * intensity;
   }
   return closestColor;
 }
 
 
-vec3 calculateRayDirection(vec2 screenCoords, vec2 cameraResolution, float FOV, float aspectRatio, mat3 cameraMatrix) {
-  vec2 normalizedCoords = screenCoords / cameraResolution;
+vec3 calculateRayDirection(vec2 screenCoords, Camera camera) {
+  vec2 normalizedCoords = screenCoords / camera.mResolution;
   vec2 ndc = vec2(normalizedCoords.x * 2 - 1, normalizedCoords.y * 2 - 1); // -1 -> 1 range
-  ndc.x *= aspectRatio;
+  ndc.x *= camera.mAspectRatio;
 
   // Calculate ray direction in view space
-  vec3 rayDirectionView = normalize(vec3(ndc.x, ndc.y, -1.0 / tan(0.5 * radians(FOV))));
+  vec3 rayDirectionView = normalize(vec3(ndc.x, ndc.y, -1.0 / tan(0.5 * radians(camera.mFOV))));
 
   // Transform the ray direction to world space using camera orientation
-  vec3 rayDirectionWorld = cameraMatrix * rayDirectionView;
+  vec3 rayDirectionWorld = camera.mMatrix * rayDirectionView;
 
   return rayDirectionWorld;
 }
@@ -265,11 +274,12 @@ vec3 calculateRayDirection(vec2 screenCoords, vec2 cameraResolution, float FOV, 
 void main() {
   vec2 pixelCoords = gl_FragCoord.xy;
 
+  int cameraOffset = int(mData[CAMERA_OFFSET]);
+  Camera cam = getCamera(cameraOffset);
+
   Ray ray;
-  ray.mOrigin = vec3(mData[6], mData[7], mData[8]);
-  vec2 resolution = vec2(mData[4], mData[5]);
-  mat3 camMatrix = mat3(mData[9], mData[10], mData[11], mData[12], mData[13], mData[14], mData[15], mData[16], mData[17]);
-  ray.mDirection = calculateRayDirection(pixelCoords, resolution, mData[2], mData[3], camMatrix);
+  ray.mOrigin = cam.mPosition;
+  ray.mDirection = calculateRayDirection(pixelCoords, cam);
 
   vec3 color = rayTrace(ray);
   FragColor = vec4(color, 1.0);

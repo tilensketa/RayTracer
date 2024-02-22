@@ -14,6 +14,7 @@ struct Vertex {
 
 struct Triangle {
   Vertex mVertices[3];
+  int mIndices[3];
   glm::vec3 mCenter;
   int mModelIndex;
   int mMeshIndex;
@@ -30,6 +31,8 @@ public:
   const int getIndex() const { return mIndex; }
   const int getTriangleCount() const { return mTriangles.size(); }
   const std::vector<Triangle> &getTriangles() const { return mTriangles; }
+  const int getVerticesCount() const { return mVertices.size(); }
+  const std::vector<Vertex> &getVertices() const { return mVertices; }
   const Material &getMaterial() const { return mMaterial; }
   const glm::vec3 &getMaxVert() const { return mMaxVert; }
   const glm::vec3 &getMinVert() const { return mMinVert; }
@@ -42,6 +45,7 @@ private:
 private:
   int mIndex;
   std::vector<Triangle> mTriangles;
+  std::vector<Vertex> mVertices;
   Material mMaterial;
   glm::vec3 mMaxVert;
   glm::vec3 mMinVert;

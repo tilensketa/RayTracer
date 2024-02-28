@@ -5,6 +5,7 @@
 class UBO {
 public:
   UBO() = default;
+
   void init(const Data &data);
 
   void update(const Data &newData);

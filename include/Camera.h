@@ -6,7 +6,6 @@
 
 class Camera {
 public:
-  Camera() = default;
   Camera(int width, int height, float fov);
 
   bool update(GLFWwindow *window, float ts);

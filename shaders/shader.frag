@@ -199,7 +199,7 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
   Triangle closestTriangle;
   bool hit;
 
-  int stack[1024];
+  int stack[100];
   int stackPointer = 0;
 
   stack[stackPointer++] = nodeIndex;

@@ -6,10 +6,15 @@
 #define BVH_OFFSET 2
 #define MATERIAL_OFFSET 3
 
-void Data::updateCamera(const Camera &camera) {
+void Data::update(const Camera &camera, Scene &scene, Settings &settings) {
+  updateCamera(camera, settings);
+  updateScene(scene, settings);
+}
+
+void Data::updateCamera(const Camera &camera, Settings &settings) {
   mOffset = 10;
   mData[CAMERA_OFFSET] = mOffset;
-  add(camera.getConfig());
+  add(settings.mBlack);
   add(camera.getFOV());
   add(camera.getAspectRatio());
   add(camera.getResolution());
@@ -17,40 +22,18 @@ void Data::updateCamera(const Camera &camera) {
   add(camera.getMatrix());
 }
 
-void Data::updateScene(Scene &scene, int maxDepth) {
-  std::vector<Triangle> triangles;
-  std::vector<Vertex> vertices;
-  std::vector<Material> materials;
-  std::vector<int> materialIndexes;
-
-  int indicesOffset = 0;
-  for (Model &model : scene.modModels()) {
-    materialIndexes.push_back(model.getMeshCount());
-    for (Mesh &mesh : model.modMeshes()) {
-      const Material material = mesh.getMaterial();
-      materials.push_back(material);
-      for (Triangle &triangle : mesh.modTriangles()) {
-        triangle.mIndices[0] += indicesOffset;
-        triangle.mIndices[1] += indicesOffset;
-        triangle.mIndices[2] += indicesOffset;
-        triangles.push_back(triangle);
-      }
-      for (const Vertex &vertex : mesh.getVertices()) {
-        vertices.push_back(vertex);
-      }
-      indicesOffset += mesh.getVerticesCount();
-    }
-  }
-
+void Data::updateScene(Scene &scene, Settings &settings) {
   // Add vertices
   mData[VERTICES_OFFSET] = mOffset;
-  int verticesCount = vertices.size();
-  for (const Vertex &vertex : vertices) {
+  int verticesCount = scene.getVerticesCount();
+  for (const Vertex &vertex : scene.getVertices()) {
     add(vertex);
   }
 
   // Add bvh nodes and triangles
-  BVHNode *node = BVHNode::buildBVH(triangles, maxDepth, 0);
+  BVHNode::mIdCounter = -1;
+  BVHNode *node =
+      BVHNode::buildBVH(scene.getTriangles(), settings.mMaxDepth, 0);
   std::vector<int> sizes = BVHNode::calculateNodeSizes(node);
   int numberOfNodes = sizes.size();
 
@@ -62,21 +45,26 @@ void Data::updateScene(Scene &scene, int maxDepth) {
     bvhNodesSum += size;
   }
   updateNode(node);
+  node->clean();
 
   // Add materials
   mData[MATERIAL_OFFSET] = mOffset;
   int materialSum = 0;
-  int materialsCount = materialIndexes.size();
+  int materialsCount = scene.getMaterialsCount();
   int matOffset = mOffset;
-  for (int materialIndex : materialIndexes) {
+  for (int materialIndex : scene.getMaterialIndexes()) {
     add(matOffset + materialSum + materialsCount);
     materialSum += materialIndex * 6; // 6 -> material size
   }
-  for (const Material &material : materials) {
+  for (const Material &material : scene.getMaterials()) {
     add(material);
   }
 
-  std::cout << mOffset << std::endl;
+  /* std::cout << "-----------------Memory block size: " << mOffset
+            << " -----------------" << std::endl; */
+  /* for (int i = 0; i < 10; i++) {
+    std::cout << i << "->" << mData[i] << std::endl;
+  } */
 }
 
 void Data::updateNode(BVHNode *node) {
@@ -154,7 +142,7 @@ void Data::add(const Triangle &triangle) {
   add(triangle.mModelIndex);
   add(triangle.mMeshIndex);
   for (int i = 0; i < 3; i++) {
-    int indice = triangle.mIndices[i];
+    int indice = triangle.mModedIndices[i];
     add(indice);
   }
   add(triangle.mVertices[0].mNormal);

@@ -18,3 +18,6 @@ Improved memory layout on GPU and fixed normals.
 
 ![bvhWithMaterials](./renders/bvhWithMaterials.png)
 Bounding volume hierarchy with materials. Major fps improvment.
+
+![gui](./renders/gui.png)
+Graphical user interface with imgui. Functionality for loading and deleting models from scene. A bit of info of scene.

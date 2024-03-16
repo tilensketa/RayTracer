@@ -12,13 +12,7 @@ Mesh::Mesh(std::vector<Vertex> vertices, std::vector<int> indices) {
     triangle.mIndices[1] = indices[i + 1];
     triangle.mIndices[2] = indices[i + 2];
 
-    triangle.mCenter = glm::vec3(0.0f);
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        triangle.mCenter[j] += triangle.mVertices[i].mPosition[j];
-      }
-    }
-    triangle.mCenter /= 3.0f;
+    triangle.recalculateCenter();
 
     mTriangles.push_back(triangle);
   }

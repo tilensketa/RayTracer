@@ -1,8 +1,31 @@
 #include "BVHNode.h"
 #include <iostream>
 
-int BVHNode::mSplitNumber = 0;
 int BVHNode::mIdCounter = -1;
+
+BVHNode::~BVHNode() {
+  if (mLeft) {
+    delete mLeft;
+    mLeft = nullptr;
+  }
+
+  if (mRight) {
+    delete mRight;
+    mRight = nullptr;
+  }
+}
+
+void BVHNode::clean() {
+  if (mLeft) {
+    delete mLeft;
+    mLeft = nullptr;
+  }
+
+  if (mRight) {
+    delete mRight;
+    mRight = nullptr;
+  }
+}
 
 BVHNode *BVHNode::createLeafNode(const std::vector<Triangle> &triangles) {
   BVHNode *node = new BVHNode;
@@ -17,10 +40,10 @@ BVHNode *BVHNode::createLeafNode(const std::vector<Triangle> &triangles) {
   return node;
 }
 
-BVHNode *BVHNode::buildBVH(const std::vector<Triangle> &triangles, int maxDepth,
-                           int depth) {
+BVHNode *BVHNode::buildBVH(const std::vector<Triangle> &triangles,
+                           const int maxDepth, int depth) {
   mIdCounter++;
-  if (depth == maxDepth || triangles.size() <= 10) {
+  if (depth == maxDepth || triangles.size() <= 5) {
     return createLeafNode(triangles);
   }
 

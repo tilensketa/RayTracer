@@ -1,12 +1,14 @@
 #pragma once
 
 #include "Quad.h"
+#include "SceneEditor.h"
 #include "Shader.h"
 #include "UBO.h"
 
 #include <GLFW/glfw3.h>
 
 #include <chrono>
+#include <memory>
 
 class Application {
 public:
@@ -16,7 +18,8 @@ public:
   void run();
 
 private:
-  GLFWwindow *initWindow(unsigned int width, unsigned int height);
+  std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>
+  initWindow(unsigned int width, unsigned int height);
   void processInput();
   void saveImage(const std::string &filename, int width, int height);
 
@@ -25,14 +28,15 @@ private:
   void initCallbacks();
 
 private:
-  int mScreenWidth;
-  int mScreenHeight;
-  GLFWwindow *mWindow;
-  Camera *mCamera;
-  Data *mData;
-  UBO *mDataUBO;
-  Quad *mQuad;
-  Shader *mShader;
+  std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> mWindow;
+  std::unique_ptr<Camera> mCamera;
+  std::unique_ptr<Data> mData;
+  std::unique_ptr<UBO> mDataUBO;
+  std::unique_ptr<Quad> mQuad;
+  std::unique_ptr<Shader> mShader;
+  std::shared_ptr<Scene> mScene;
+  std::shared_ptr<SceneEditor> mSceneEditor;
+  std::shared_ptr<Settings> mSettings;
   float mTimeStep;
   std::chrono::time_point<std::chrono::high_resolution_clock> mFrameStart,
       mFrameEnd;

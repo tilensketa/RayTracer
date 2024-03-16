@@ -158,6 +158,8 @@ set(SOURCES
     src/Data.cpp
     src/BVHNode.cpp
     src/Application.cpp
+    src/SceneEditor.cpp
+    src/Scene.cpp
     # Add other source files here if any
 )
 
@@ -186,4 +188,4 @@ target_link_libraries(RayTracer PRIVATE
 )
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)

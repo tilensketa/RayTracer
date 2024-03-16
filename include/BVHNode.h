@@ -5,33 +5,44 @@
 
 class BVHNode {
 public:
-  BVHNode() = default;
-  static BVHNode *buildBVH(const std::vector<Triangle> &triangles, int maxDepth,
-                           int depth);
+  ~BVHNode();
+  void clean();
+
+  static BVHNode *buildBVH(const std::vector<Triangle> &triangles,
+                           const int maxDepth, int depth);
   static BVHNode *createLeafNode(const std::vector<Triangle> &triangles);
 
+  // Node size
   static std::vector<int> calculateNodeSizes(const BVHNode *node);
   static int calculateNodeSize(const BVHNode *node);
 
-  const int getSplitNumber() const { return mSplitNumber; }
+  // ID
   const int getID() const { return mID; }
-  const glm::vec3 &getMaxVert() const { return mMaxVert; }
-  const glm::vec3 &getMinVert() const { return mMinVert; }
-  BVHNode *getLeft() { return mLeft; }
-  BVHNode *getRight() { return mRight; }
-  const bool isLeaf() const { return mIsLeaf; }
-  const std::vector<Triangle> &getTriangles() const { return mTriangles; }
-  const int getTriangleCount() const { return mTriangles.size(); }
   const int getLeftID() const { return mLeftID; }
   const int getRightID() const { return mRightID; }
+
+  // Node*
+  BVHNode *getLeft() { return mLeft; }
+  BVHNode *getRight() { return mRight; }
+
+  // Bounding box
+  const glm::vec3 &getMaxVert() const { return mMaxVert; }
+  const glm::vec3 &getMinVert() const { return mMinVert; }
+
+  // Triangles
+  const std::vector<Triangle> &getTriangles() const { return mTriangles; }
+  const int getTriangleCount() const { return mTriangles.size(); }
+
+  // Leaf
+  const bool isLeaf() const { return mIsLeaf; }
 
 private:
   void computeBoundingBox();
 
-private:
-  static int mSplitNumber;
+public:
   static int mIdCounter;
 
+private:
   int mID;
   int mLeftID;
   int mRightID;

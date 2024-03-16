@@ -11,31 +11,38 @@
 
 #include <cassert>
 #include <iostream>
+#include <memory>
 
 #define MODELS "../models/"
 #define SHADERS "../shaders/"
 
-Application::Application(unsigned int width, unsigned int height) {
-  mScreenWidth = width;
-  mScreenHeight = height;
-  mWindow = initWindow(width, height);
-  mCamera = new Camera(width, height, 45.0f);
-  mQuad = new Quad;
-  mData = new Data;
-  mDataUBO = new UBO;
+Application::Application(unsigned int width, unsigned int height)
+    : mWindow(initWindow(width, height)) {
+  mCamera = std::make_unique<Camera>(width, height, 45.0f);
+  mQuad = std::make_unique<Quad>();
+  mData = std::make_unique<Data>();
+  mDataUBO = std::make_unique<UBO>();
+  mScene = std::make_shared<Scene>();
+  mShader =
+      std::make_unique<Shader>(SHADERS "shader.vert", SHADERS "shader.frag");
+  mSettings = std::make_shared<Settings>();
 
-  Scene scene;
   Model monkey(MODELS "monkey.obj");
-  scene.add(monkey);
-  mData->updateCamera(*mCamera);
-  mData->updateScene(scene, 15);
+  mScene->add(monkey);
+
+  mSceneEditor = std::make_shared<SceneEditor>(MODELS, mScene, mSettings);
+  /* {
+    Model monkey1(MODELS "monkeyLeft.obj");
+    mScene->add(monkey1);
+  } */
+
+  mData->update(*mCamera, *mScene, *mSettings);
   mDataUBO->init(*mData);
 
-  mShader = new Shader(SHADERS "shader.vert", SHADERS "shader.frag");
   mTimeStep = 0.0f;
   initCallbacks();
   ImGui::CreateContext();
-  ImGui_ImplGlfw_InitForOpenGL(mWindow, true);
+  ImGui_ImplGlfw_InitForOpenGL(mWindow.get(), true);
   ImGui_ImplOpenGL3_Init("#version 430 core");
 }
 
@@ -44,23 +51,19 @@ Application::~Application() {
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 
-  delete mCamera;
-  delete mData;
-  delete mDataUBO;
-  delete mQuad;
-  delete mShader;
   glfwTerminate();
 }
 
 void Application::run() {
+  int a = 0;
   double fps = 0;
-  while (!glfwWindowShouldClose(mWindow)) {
+  while (!glfwWindowShouldClose(mWindow.get())) {
 
     mFrameStart = std::chrono::high_resolution_clock::now();
 
     processInput();
-    if (mCamera->update(mWindow, mTimeStep)) {
-      mData->updateCamera(*mCamera);
+    if (mCamera->update(mWindow.get(), mTimeStep)) {
+      mData->updateCamera(*mCamera, *mSettings);
       mDataUBO->update(*mData);
     }
 
@@ -73,24 +76,12 @@ void Application::run() {
     mQuad->draw();
     mDataUBO->unbind();
 
-    // ImGui frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    if (mSceneEditor->render(fps, mData->getFloatDataSize())) {
+      mData->update(*mCamera, *mScene, *mSettings);
+      mDataUBO->update(*mData);
+    }
 
-    // Your ImGui UI code goes here
-    // Create a window with a box
-    ImGui::Begin("Info");
-    // Draw a box using ImGui::Text
-    ImGui::Text("FPS: %f", fps);
-    // End the ImGui window
-    ImGui::End();
-
-    // Render ImGui
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    glfwSwapBuffers(mWindow);
+    glfwSwapBuffers(mWindow.get());
     glfwPollEvents();
 
     mFrameEnd = std::chrono::high_resolution_clock::now();
@@ -100,7 +91,8 @@ void Application::run() {
   }
 }
 
-GLFWwindow *Application::initWindow(unsigned int width, unsigned int height) {
+std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>
+Application::initWindow(unsigned int width, unsigned int height) {
   if (!glfwInit()) {
     std::cout << "Failed to initialize GLFW" << std::endl;
     assert(false);
@@ -127,20 +119,21 @@ GLFWwindow *Application::initWindow(unsigned int width, unsigned int height) {
   }
   glViewport(0, 0, width, height);
   std::cout << "Successfully initialized GLAD" << std::endl;
-  return window;
+  return std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>(
+      window, glfwDestroyWindow);
 }
 
 void Application::processInput() {
-  if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    glfwSetWindowShouldClose(mWindow, true);
-  if (glfwGetKey(mWindow, GLFW_KEY_R) == GLFW_PRESS)
+  if (glfwGetKey(mWindow.get(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    glfwSetWindowShouldClose(mWindow.get(), true);
+  if (glfwGetKey(mWindow.get(), GLFW_KEY_R) == GLFW_PRESS)
     saveImage("../renders/hello.png", mCamera->getResolution().x,
               mCamera->getResolution().y);
 }
 
 void Application::initCallbacks() {
-  glfwSetWindowUserPointer(mWindow, this);
-  glfwSetWindowSizeCallback(mWindow, framebuffer_size_callback);
+  glfwSetWindowUserPointer(mWindow.get(), this);
+  glfwSetWindowSizeCallback(mWindow.get(), framebuffer_size_callback);
 }
 
 void Application::framebuffer_size_callback(GLFWwindow *window, int width,
@@ -148,10 +141,8 @@ void Application::framebuffer_size_callback(GLFWwindow *window, int width,
   auto app = static_cast<Application *>(glfwGetWindowUserPointer(window));
   if (app) {
     glViewport(0, 0, width, height);
-    app->mScreenWidth = width;
-    app->mScreenHeight = height;
     app->mCamera->setResolution(width, height);
-    app->mData->updateCamera(*(app->mCamera));
+    app->mData->updateCamera(*(app->mCamera), *(app->mSettings));
     app->mDataUBO->update(*(app->mData));
   }
 }

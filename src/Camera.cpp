@@ -4,7 +4,6 @@
 #include <iostream>
 
 Camera::Camera(int width, int height, float fov) {
-  mBlack = 1.0f;
   mResolution = glm::ivec2(width, height);
   mFOV = fov;
   mPosition = glm::vec3(0, 0, 5);
@@ -71,15 +70,6 @@ bool Camera::update(GLFWwindow *window, float ts) {
     mFront = glm::rotate(q, mFront);
     rotated = true;
     recalculateMatrix();
-  }
-
-  if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) {
-    mBlack = 1.0f;
-    updated = true;
-  }
-  if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) {
-    mBlack = 0.0f;
-    updated = true;
   }
 
   if (moved || rotated || updated)

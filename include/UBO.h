@@ -15,4 +15,5 @@ public:
 
 private:
   unsigned int mID;
+  int mBindingIndex = 0;
 };

@@ -3,13 +3,15 @@
 #include "BVHNode.h"
 #include "Camera.h"
 #include "Scene.h"
+#include "Settings.h"
 
 class Data {
 public:
-  Data() = default;
+  void update(const Camera &camera, Scene &scene, Settings &settings);
+  void updateCamera(const Camera &camera, Settings &settings);
+  void updateScene(Scene &scene, Settings &settings);
 
-  void updateCamera(const Camera &camera);
-  void updateScene(Scene &scene, int maxDepth);
+  const int getFloatDataSize() const { return mOffset; }
 
 private:
   void updateNode(BVHNode *node);

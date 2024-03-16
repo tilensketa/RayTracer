@@ -2,7 +2,8 @@
 #include <glm/glm.hpp>
 #include <iostream>
 
-Model::Model(const std::string &objPath) {
+Model::Model(const std::string objPath) {
+  mName = objPath;
   Assimp::Importer importer;
 
   const aiScene *scene =

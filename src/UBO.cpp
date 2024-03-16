@@ -5,17 +5,17 @@
 void UBO::init(const Data &data) {
   glGenBuffers(1, &mID);
   glBindBuffer(GL_SHADER_STORAGE_BUFFER, mID);
-  glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Data), &data, GL_DYNAMIC_DRAW);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+  glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Data), &data, GL_DYNAMIC_COPY);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, mBindingIndex);
 }
 
 void UBO::update(const Data &newData) {
   glBindBuffer(GL_SHADER_STORAGE_BUFFER, mID);
-  glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Data), &newData);
+  glBufferSubData(GL_SHADER_STORAGE_BUFFER, mBindingIndex, sizeof(Data), &newData);
   glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
-void UBO::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mID); }
+void UBO::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, mBindingIndex, mID); }
 
 void UBO::unbind() { glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); }
 

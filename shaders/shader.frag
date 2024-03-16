@@ -33,12 +33,15 @@ struct BoundingBox {
 };
 
 struct Camera {
-  bool mBlack;
   float mFOV;
   float mAspectRatio;
   vec2 mResolution;
   vec3 mPosition;
   mat3 mMatrix;
+};
+
+struct Settings {
+  bool mBlack;
 };
 
 struct HitPayload {
@@ -117,9 +120,13 @@ Material getMaterial(inout int offset) {
   material.mAmbient = getVec3(offset);
   return material;
 }
+Settings getSettings(inout int offset) {
+  Settings settings;
+  settings.mBlack = getBool(offset);
+  return settings;
+}
 Camera getCamera(inout int offset) {
   Camera camera;
-  camera.mBlack = getBool(offset);
   camera.mFOV = getFloat(offset);
   camera.mAspectRatio = getFloat(offset);
   camera.mResolution = getVec2(offset);
@@ -238,13 +245,16 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
   return miss();
 }
 
-vec3 rayTrace(Ray ray) {
+vec3 rayTrace(Ray ray, Settings settings) {
   vec3 closestColor = vec3(0.0);
 
   vec3 lightDir = normalize(vec3(-1));
 
   HitPayload payload = traverseBVH(ray, 0);
   if (payload.mHit) {
+    if (settings.mBlack) {
+      return vec3(1.0);
+    }
     float intensity = dot(payload.mTriangle.mNormal, -lightDir) * 0.5 + 0.5;
 
     int materialOffset = int(mData[MATERIAL_OFFSET]);
@@ -275,12 +285,13 @@ void main() {
   vec2 pixelCoords = gl_FragCoord.xy;
 
   int cameraOffset = int(mData[CAMERA_OFFSET]);
+  Settings settings = getSettings(cameraOffset);
   Camera cam = getCamera(cameraOffset);
 
   Ray ray;
   ray.mOrigin = cam.mPosition;
   ray.mDirection = calculateRayDirection(pixelCoords, cam);
 
-  vec3 color = rayTrace(ray);
+  vec3 color = rayTrace(ray, settings);
   FragColor = vec4(color, 1.0);
 }

@@ -27,8 +27,8 @@ Application::Application(unsigned int width, unsigned int height)
       std::make_unique<Shader>(SHADERS "shader.vert", SHADERS "shader.frag");
   mSettings = std::make_shared<Settings>();
 
-  Model monkey(MODELS "monkey.obj");
-  mScene->add(monkey);
+  // Model monkey(MODELS "monkey.obj");
+  mScene->add(MODELS "monkey.obj");
 
   mSceneEditor = std::make_shared<SceneEditor>(MODELS, mScene, mSettings);
   /* {

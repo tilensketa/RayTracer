@@ -6,16 +6,21 @@
 
 #include <filesystem>
 namespace fs = std::filesystem;
-#include <iostream>
 
-bool SceneEditor::EditVec3WithColorEdit3(const char *label, glm::vec3 &vec) {
+bool SceneEditor::EditVec3WithColorEdit3(const char *label, int index,
+                                         glm::vec3 &vec) {
+  bool isChanged = false;
   ImVec4 color(vec.x, vec.y, vec.z, 1.0f);
+  ImGui::PushID(index);
   if (ImGui::ColorEdit3(label, (float *)&color)) {
     vec.x = color.x;
     vec.y = color.y;
     vec.z = color.z;
-    return true;
+    isChanged = true;
   }
+  ImGui::PopID();
+  if (isChanged)
+    return true;
   return false;
 }
 
@@ -32,6 +37,9 @@ SceneEditor::SceneEditor(const std::string &modelsFolder,
     }
   }
   refreshLoadedModels();
+
+  mSelectedModelIndex = 0;
+  mSelectedModel = mScene->getModel(mSelectedModelIndex);
 }
 
 bool SceneEditor::render(float fps, int dataSize) {
@@ -119,12 +127,15 @@ bool SceneEditor::loadModel() {
         ImGui::EndCombo();
       }
       if (ImGui::Button("Load")) {
-        std::string selectedModel =
+        std::string selectedModelName =
             mModelsFolder + mModelList[mSelectedLoadModelIndex];
-        Model loadedModel(selectedModel);
-        mScene->add(loadedModel);
-        if (mSelectedModel == nullptr)
+        mScene->add(selectedModelName);
+        if (mSelectedModel == nullptr) {
+          mSelectedModelIndex = 0;
           mSelectedModel = mScene->getModel(0);
+        } else {
+          mSelectedModel = mScene->getModel(mLoadedModelList.size());
+        }
         isChanged = true;
         mShowLoadModelPopup = false;
         refreshLoadedModels();
@@ -147,6 +158,7 @@ bool SceneEditor::removeModel() {
     mScene->remove(mSelectedModel->getName());
     isChanged = true;
     mSelectedModel = nullptr;
+    mSelectedModelIndex = -1;
     refreshLoadedModels();
   }
   return isChanged;
@@ -157,34 +169,35 @@ bool SceneEditor::translateModel() {
   if (mSelectedModel == nullptr)
     return false;
 
+  float position[3] = {mSelectedModel->getPosition().x,
+                       mSelectedModel->getPosition().y,
+                       mSelectedModel->getPosition().z};
   ImGui::Text("Position");
-  if (ImGui::SliderFloat("X", &mSelectedModel->modPosition().x, -10, 10)) {
+  float tRange = 5;
+  if (ImGui::SliderFloat("X", &position[0], -tRange, tRange)) {
     isChanged = true;
   }
-  if (ImGui::SliderFloat("Y", &mSelectedModel->modPosition().y, -10, 10)) {
+  if (ImGui::SliderFloat("Y", &position[1], -tRange, tRange)) {
     isChanged = true;
   }
-  if (ImGui::SliderFloat("Z", &mSelectedModel->modPosition().z, -10, 10)) {
+  if (ImGui::SliderFloat("Z", &position[2], -tRange, tRange)) {
     isChanged = true;
   }
   if (isChanged) {
-    // TODO translate model
+    mSelectedModel->setPosition({position[0], position[1], position[2]});
+    mSelectedModel->updatePosition();
+    mScene->recalculate();
   }
   return isChanged;
 }
 
 void SceneEditor::modelSelector() {
-  if (ImGui::BeginListBox(
-          "LoadedModels",
-          ImVec2(-1, 5 * ImGui::GetTextLineHeightWithSpacing()))) {
+  ImVec2 size(-1, 5 * ImGui::GetTextLineHeightWithSpacing());
+  if (ImGui::BeginListBox("LoadedModels", size)) {
     for (int i = 0; i < mLoadedModelList.size(); ++i) {
-      if (ImGui::Selectable(mLoadedModelList[i],
-                            mSelectedModel == mScene->getModel(i))) {
+      if (ImGui::Selectable(mLoadedModelList[i], mSelectedModelIndex == i)) {
+        mSelectedModelIndex = i;
         mSelectedModel = mScene->getModel(i);
-      }
-
-      if (mSelectedModel == mScene->getModel(i) && ImGui::IsItemFocused()) {
-        ImGui::SetItemDefaultFocus();
       }
     }
     ImGui::EndListBox();
@@ -196,11 +209,16 @@ bool SceneEditor::materialEditor() {
     return false;
   bool isChanged = false;
   ImGui::Text("Material");
+  int index = 0;
   for (Mesh &mesh : mSelectedModel->modMeshes()) {
-    if (EditVec3WithColorEdit3("Diffuse", mesh.modMaterial().modDiffuse())) {
+    if (EditVec3WithColorEdit3("Diffuse", index,
+                               mesh.modMaterial().modDiffuse())) {
       isChanged = true;
-      // TODO change color
     }
+    index++;
+  }
+  if (isChanged) {
+    mScene->recalculate();
   }
   return isChanged;
 }

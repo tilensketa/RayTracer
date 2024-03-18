@@ -1,11 +1,12 @@
 #include "Scene.h"
 
-void Scene::add(Model model) {
+void Scene::add(const std::string &modelName) {
+  Model model(modelName);
   model.setIndex(mModels.size());
   mModels.push_back(model);
   recalculate();
 }
-void Scene::remove(std::string modelNameToRemove) {
+void Scene::remove(const std::string& modelNameToRemove) {
   int index = 0;
   bool modelFound = false;
   for (int i = 0; i < mModels.size(); i++) {
@@ -22,9 +23,9 @@ void Scene::remove(std::string modelNameToRemove) {
   recalculate();
 }
 
-std::unique_ptr<Model> Scene::getModel(int index) {
+Model *Scene::getModel(int index) {
   if (index >= 0 && index < mModels.size()) {
-    return std::make_unique<Model>(mModels[index]);
+    return &mModels[index];
   } else {
     return nullptr;
   }

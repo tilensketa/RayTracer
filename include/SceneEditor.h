@@ -23,7 +23,7 @@ private:
   bool materialEditor();
 
   void refreshLoadedModels();
-  bool EditVec3WithColorEdit3(const char* label, glm::vec3& vec);
+  bool EditVec3WithColorEdit3(const char *label, int index, glm::vec3 &vec);
 
 public:
   std::shared_ptr<Scene> mScene;
@@ -37,6 +37,7 @@ private:
   bool mShowLoadModelPopup = false;
 
   // Select model
-  std::unique_ptr<Model> mSelectedModel = nullptr;
+  int mSelectedModelIndex = -1;
+  Model *mSelectedModel = nullptr;
   std::vector<const char *> mLoadedModelList;
 };

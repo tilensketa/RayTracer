@@ -218,7 +218,6 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
 
     if (intersectRayAABB(ray, aabb)) {
       bool isLeaf = getBool(offset);
-
       if (isLeaf) {
         int triangleCount = getInt(offset);
         for (int i = 0; i < triangleCount; i++) {
@@ -252,15 +251,16 @@ vec3 rayTrace(Ray ray, Settings settings) {
 
   HitPayload payload = traverseBVH(ray, 0);
   if (payload.mHit) {
-    if (settings.mBlack) {
-      return vec3(1.0);
-    }
-    float intensity = dot(payload.mTriangle.mNormal, -lightDir) * 0.5 + 0.5;
-
     int materialOffset = int(mData[MATERIAL_OFFSET]);
     int modelMaterialOffset = int(mData[materialOffset + payload.mTriangle.mModelIndex]);
     int meshMaterialOffset = modelMaterialOffset + payload.mTriangle.mMeshIndex * 6; // 6 -> material size
     Material material = getMaterial(meshMaterialOffset);
+
+    if (settings.mBlack) {
+      return material.mDiffuse;
+    }
+
+    float intensity = dot(payload.mTriangle.mNormal, -lightDir) * 0.5 + 0.5;
     closestColor = material.mDiffuse * intensity;
   }
   return closestColor;
@@ -294,4 +294,5 @@ void main() {
 
   vec3 color = rayTrace(ray, settings);
   FragColor = vec4(color, 1.0);
+  //FragColor = vec4(1,0,0,1);
 }

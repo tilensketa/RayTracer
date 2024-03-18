@@ -10,13 +10,18 @@ public:
   Scene() = default;
 
   void add(Model model);
-  void remove(std::string modelNameToRemove);
+  void add(const std::string& modelName);
+  void remove(const std::string& modelNameToRemove);
+  void recalculate();
 
   // Model
   const int getModelCount() const { return mModels.size(); }
   const std::vector<Model> &getModels() const { return mModels; }
-  std::unique_ptr<Model> getModel(int i);
+  Model* getModel(int index);
   std::vector<Model> &modModels() { return mModels; }
+  const std::string &getModelName(int index) {
+    return mModels[index].getName();
+  }
 
   // Triangles
   const std::vector<Triangle> &getTriangles() const { return mTriangles; }
@@ -32,9 +37,6 @@ public:
   const std::vector<int> &getMaterialIndexes() const {
     return mMaterialIndexes;
   }
-
-private:
-  void recalculate();
 
 private:
   std::vector<Model> mModels;

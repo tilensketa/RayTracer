@@ -19,6 +19,7 @@ Model::Model(const std::string objPath) {
   }
 
   createBoundingBox();
+  std::cout << "Model created: " << objPath << std::endl;
 }
 
 void Model::processNode(const aiNode *node, const aiScene *scene) {
@@ -47,6 +48,7 @@ void Model::processNode(const aiNode *node, const aiScene *scene) {
         aiVector3D vertex = mesh->mVertices[j];
         aiVector3D normal = mesh->mNormals[j];
         vert.mPosition = glm::vec3(vertex.x, vertex.y, vertex.z);
+        vert.mModedPosition = glm::vec3(vertex.x, vertex.y, vertex.z);
         vert.mNormal = glm::vec3(normal.x, normal.y, normal.z);
 
         if (mesh->HasTextureCoords(0)) {
@@ -121,13 +123,19 @@ void Model::createBoundingBox() {
     const Mesh &mesh = mMeshes[i];
     const glm::vec3 &meshMaxVert = mesh.getMaxVert();
     const glm::vec3 &meshMinVert = mesh.getMinVert();
-    minVert.x = glm::min(minVert.x, meshMinVert.x);
-    minVert.y = glm::min(minVert.y, meshMinVert.y);
-    minVert.z = glm::min(minVert.z, meshMinVert.z);
-    maxVert.x = glm::max(maxVert.x, meshMaxVert.x);
-    maxVert.y = glm::max(maxVert.y, meshMaxVert.y);
-    maxVert.z = glm::max(maxVert.z, meshMaxVert.z);
+    for (int j = 0; j < 3; j++) {
+      minVert[j] = glm::min(minVert[j], meshMinVert[j]);
+      maxVert[j] = glm::max(maxVert[j], meshMaxVert[j]);
+    }
   }
   mMaxVert = maxVert;
   mMinVert = minVert;
+}
+
+void Model::updatePosition() {
+  for (Mesh &mesh : mMeshes) {
+    mesh.setPosition(mPosition);
+    mesh.updatePosition();
+  }
+  createBoundingBox();
 }

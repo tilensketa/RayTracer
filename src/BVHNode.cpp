@@ -95,8 +95,8 @@ void BVHNode::computeBoundingBox() {
     for (int k = 0; k < 3; k++) {
       const Vertex &vert = triangle.mVertices[k];
       for (int i = 0; i < 3; i++) {
-        minVert[i] = glm::min(minVert[i], vert.mPosition[i]);
-        maxVert[i] = glm::max(maxVert[i], vert.mPosition[i]);
+        minVert[i] = glm::min(minVert[i], vert.mModedPosition[i]);
+        maxVert[i] = glm::max(maxVert[i], vert.mModedPosition[i]);
       }
     }
   }

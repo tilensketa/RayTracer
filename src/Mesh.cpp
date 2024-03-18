@@ -27,12 +27,10 @@ void Mesh::createBoundingBox() {
     const Triangle &triangle = mTriangles[j];
     for (int k = 0; k < 3; k++) {
       const Vertex &vert = triangle.mVertices[k];
-      minVert.x = glm::min(minVert.x, vert.mPosition.x);
-      minVert.y = glm::min(minVert.y, vert.mPosition.y);
-      minVert.z = glm::min(minVert.z, vert.mPosition.z);
-      maxVert.x = glm::max(maxVert.x, vert.mPosition.x);
-      maxVert.y = glm::max(maxVert.y, vert.mPosition.y);
-      maxVert.z = glm::max(maxVert.z, vert.mPosition.z);
+      for (int i = 0; i < 3; i++) {
+        minVert[i] = glm::min(minVert[i], vert.mModedPosition[i]);
+        maxVert[i] = glm::max(maxVert[i], vert.mModedPosition[i]);
+      }
     }
   }
   mMaxVert = maxVert;
@@ -44,4 +42,18 @@ void Mesh::setIndex(const int id) {
   for (Triangle &triangle : mTriangles) {
     triangle.mMeshIndex = mIndex;
   }
+}
+
+void Mesh::updatePosition() {
+  for (Vertex &vertex : mVertices) {
+    vertex.mModedPosition = vertex.mPosition + mPosition;
+  }
+  for (Triangle &triangle : mTriangles) {
+    for (int i = 0; i < 3; i++) {
+      triangle.mVertices[i].mModedPosition =
+          triangle.mVertices[i].mPosition + mPosition;
+    }
+    triangle.recalculateCenter();
+  }
+  createBoundingBox();
 }

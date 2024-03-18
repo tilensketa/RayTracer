@@ -9,6 +9,7 @@
 
 struct Vertex {
   glm::vec3 mPosition;
+  glm::vec3 mModedPosition;
   glm::vec3 mNormal;
 };
 
@@ -24,7 +25,7 @@ struct Triangle {
     mCenter = glm::vec3(0.0f);
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        mCenter[j] += mVertices[i].mPosition[j];
+        mCenter[j] += mVertices[i].mModedPosition[j];
       }
     }
     mCenter /= 3.0f;
@@ -39,6 +40,10 @@ public:
   // Index
   void setIndex(const int id);
   const int getIndex() const { return mIndex; }
+
+  // Position
+  void setPosition(const glm::vec3 &newPosition) { mPosition = newPosition; }
+  void updatePosition();
 
   // Triangles
   const int getTriangleCount() const { return mTriangles.size(); }
@@ -63,6 +68,7 @@ private:
 
 private:
   int mIndex;
+  glm::vec3 mPosition = glm::vec3(0.0f);
   std::vector<Triangle> mTriangles;
   std::vector<Vertex> mVertices;
   Material mMaterial;

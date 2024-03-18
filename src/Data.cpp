@@ -136,7 +136,7 @@ void Data::add(const glm::mat3 &mat) {
   mOffset += 9;
 }
 
-void Data::add(const Vertex &vertex) { add(vertex.mPosition); }
+void Data::add(const Vertex &vertex) { add(vertex.mModedPosition); }
 
 void Data::add(const Triangle &triangle) {
   add(triangle.mModelIndex);

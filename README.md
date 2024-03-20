@@ -21,3 +21,6 @@ Bounding volume hierarchy with materials. Major fps improvment.
 
 ![gui](./renders/gui.png)
 Graphical user interface with imgui. Functionality for loading and deleting models from scene. A bit of info of scene.
+
+![modelTransformsAndCameraGui](./renders/modelTransformsAndCameraGui.png)
+Added more options to modify and transform model. And added properties of camera.

@@ -18,7 +18,7 @@
 
 Application::Application(unsigned int width, unsigned int height)
     : mWindow(initWindow(width, height)) {
-  mCamera = std::make_unique<Camera>(width, height, 45.0f);
+  mCamera = std::make_shared<Camera>(width, height, 45.0f);
   mQuad = std::make_unique<Quad>();
   mData = std::make_unique<Data>();
   mDataUBO = std::make_unique<UBO>();
@@ -27,14 +27,9 @@ Application::Application(unsigned int width, unsigned int height)
       std::make_unique<Shader>(SHADERS "shader.vert", SHADERS "shader.frag");
   mSettings = std::make_shared<Settings>();
 
-  // Model monkey(MODELS "monkey.obj");
   mScene->add(MODELS "monkey.obj");
 
-  mSceneEditor = std::make_shared<SceneEditor>(MODELS, mScene, mSettings);
-  /* {
-    Model monkey1(MODELS "monkeyLeft.obj");
-    mScene->add(monkey1);
-  } */
+  mSceneEditor = std::make_shared<SceneEditor>(MODELS, mScene, mCamera, mSettings);
 
   mData->update(*mCamera, *mScene, *mSettings);
   mDataUBO->init(*mData);

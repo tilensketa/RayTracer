@@ -245,7 +245,7 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
 }
 
 vec3 rayTrace(Ray ray, Settings settings) {
-  vec3 closestColor = vec3(0.0);
+  vec3 closestColor = vec3(0.1);
 
   vec3 lightDir = normalize(vec3(-1));
 

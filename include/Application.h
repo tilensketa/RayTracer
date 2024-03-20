@@ -29,7 +29,7 @@ private:
 
 private:
   std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> mWindow;
-  std::unique_ptr<Camera> mCamera;
+  std::shared_ptr<Camera> mCamera;
   std::unique_ptr<Data> mData;
   std::unique_ptr<UBO> mDataUBO;
   std::unique_ptr<Quad> mQuad;

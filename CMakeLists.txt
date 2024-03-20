@@ -68,70 +68,100 @@ if(NOT stb_download_status EQUAL 0)
 endif()
 
 # Download ImGui source files during configuration
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imconfig.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imconfig.h"
-              STATUS imgui_download_status_1)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui.cpp"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.cpp"
-              STATUS imgui_download_status_2)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.h"
-              STATUS imgui_download_status_3)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_draw.cpp"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp"
-              STATUS imgui_download_status_4)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_internal.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_internal.h"
-              STATUS imgui_download_status_5)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_tables.cpp"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_tables.cpp"
-              STATUS imgui_download_status_6)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_widgets.cpp"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp"
-              STATUS imgui_download_status_7)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imstb_rectpack.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_rectpack.h"
-              STATUS imgui_download_status_8)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imstb_textedit.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_textedit.h"
-              STATUS imgui_download_status_9)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imstb_truetype.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_truetype.h"
-              STATUS imgui_download_status_10)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_glfw.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.h"
-              STATUS imgui_download_status_11)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_glfw.cpp"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.cpp"
-              STATUS imgui_download_status_12)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_opengl3.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.h"
-              STATUS imgui_download_status_13)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_opengl3.cpp"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.cpp"
-              STATUS imgui_download_status_14)
-file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_opengl3_loader.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3_loader.h"
-              STATUS imgui_download_status_15)
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imconfig.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imconfig.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imconfig.h"
+    STATUS imgui_download_status_1)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.cpp"
+    STATUS imgui_download_status_2)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.h"
+    STATUS imgui_download_status_3)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_draw.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp"
+    STATUS imgui_download_status_4)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_internal.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_internal.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_internal.h"
+    STATUS imgui_download_status_5)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_tables.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_tables.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_tables.cpp"
+    STATUS imgui_download_status_6)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_widgets.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp"
+    STATUS imgui_download_status_7)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_rectpack.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imstb_rectpack.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_rectpack.h"
+    STATUS imgui_download_status_8)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_textedit.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imstb_textedit.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_textedit.h"
+    STATUS imgui_download_status_9)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_truetype.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imstb_truetype.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imstb_truetype.h"
+    STATUS imgui_download_status_10)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_glfw.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.h"
+    STATUS imgui_download_status_11)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_glfw.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.cpp"
+    STATUS imgui_download_status_12)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_opengl3.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.h"
+    STATUS imgui_download_status_13)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_opengl3.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.cpp"
+    STATUS imgui_download_status_14)
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3_loader.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_opengl3_loader.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3_loader.h"
+    STATUS imgui_download_status_15)
+endif()
 
 # Check if the downloads were successful
-if(NOT imgui_download_status_1 EQUAL 0 OR
-   NOT imgui_download_status_2 EQUAL 0 OR
-   NOT imgui_download_status_3 EQUAL 0 OR
-   NOT imgui_download_status_4 EQUAL 0 OR
-   NOT imgui_download_status_5 EQUAL 0 OR
-   NOT imgui_download_status_6 EQUAL 0 OR
-   NOT imgui_download_status_7 EQUAL 0 OR
-   NOT imgui_download_status_8 EQUAL 0 OR
-   NOT imgui_download_status_9 EQUAL 0 OR
-   NOT imgui_download_status_10 EQUAL 0 OR
-   NOT imgui_download_status_11 EQUAL 0 OR
-   NOT imgui_download_status_12 EQUAL 0 OR
-   NOT imgui_download_status_13 EQUAL 0 OR
-   NOT imgui_download_status_14 EQUAL 0 OR
-   NOT imgui_download_status_15 EQUAL 0)
-    message(FATAL_ERROR "Failed to download ImGui files.")
-endif()
+# if(NOT imgui_download_status_1 EQUAL 0 OR
+#    NOT imgui_download_status_2 EQUAL 0 OR
+#    NOT imgui_download_status_3 EQUAL 0 OR
+#    NOT imgui_download_status_4 EQUAL 0 OR
+#    NOT imgui_download_status_5 EQUAL 0 OR
+#    NOT imgui_download_status_6 EQUAL 0 OR
+#    NOT imgui_download_status_7 EQUAL 0 OR
+#    NOT imgui_download_status_8 EQUAL 0 OR
+#    NOT imgui_download_status_9 EQUAL 0 OR
+#    NOT imgui_download_status_10 EQUAL 0 OR
+#    NOT imgui_download_status_11 EQUAL 0 OR
+#    NOT imgui_download_status_12 EQUAL 0 OR
+#    NOT imgui_download_status_13 EQUAL 0 OR
+#    NOT imgui_download_status_14 EQUAL 0 OR
+#    NOT imgui_download_status_15 EQUAL 0)
+#     message(FATAL_ERROR "Failed to download ImGui files.")
+# endif()
 
 set(IMGUI_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui.cpp

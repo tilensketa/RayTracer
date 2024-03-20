@@ -1,12 +1,14 @@
 #include "Scene.h"
 
 void Scene::add(const std::string &modelName) {
-  Model model(modelName);
-  model.setIndex(mModels.size());
-  mModels.push_back(model);
+  // Model model(modelName);
+  // model.setIndex(mModels.size());
+  // mModels.push_back(model);
+  mModels.push_back(Model(modelName));
+  mModels[mModels.size() - 1].setIndex(mModels.size() - 1);
   recalculate();
 }
-void Scene::remove(const std::string& modelNameToRemove) {
+void Scene::remove(const std::string &modelNameToRemove) {
   int index = 0;
   bool modelFound = false;
   for (int i = 0; i < mModels.size(); i++) {

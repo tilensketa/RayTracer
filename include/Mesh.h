@@ -43,7 +43,12 @@ public:
 
   // Position
   void setPosition(const glm::vec3 &newPosition) { mPosition = newPosition; }
-  void updatePosition();
+
+  // Scale
+  void setScale(const glm::vec3 &newScale) { mScale = newScale; }
+
+  // Rotation
+  void setRotation(const glm::vec3 &newRotation) { mRotation = newRotation; }
 
   // Triangles
   const int getTriangleCount() const { return mTriangles.size(); }
@@ -63,12 +68,17 @@ public:
   const glm::vec3 &getMaxVert() const { return mMaxVert; }
   const glm::vec3 &getMinVert() const { return mMinVert; }
 
+  void update();
+
 private:
   void createBoundingBox();
+  void recalculateVertex(Vertex &vertex);
 
 private:
   int mIndex;
   glm::vec3 mPosition = glm::vec3(0.0f);
+  glm::vec3 mScale = glm::vec3(1.0f);
+  glm::vec3 mRotation = glm::vec3(0.0f);
   std::vector<Triangle> mTriangles;
   std::vector<Vertex> mVertices;
   Material mMaterial;

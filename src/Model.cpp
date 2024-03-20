@@ -132,10 +132,12 @@ void Model::createBoundingBox() {
   mMinVert = minVert;
 }
 
-void Model::updatePosition() {
+void Model::update() {
   for (Mesh &mesh : mMeshes) {
     mesh.setPosition(mPosition);
-    mesh.updatePosition();
+    mesh.setScale(mScale);
+    mesh.setRotation(mRotation);
+    mesh.update();
   }
   createBoundingBox();
 }

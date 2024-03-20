@@ -7,7 +7,7 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-bool SceneEditor::EditVec3WithColorEdit3(const char *label, int index,
+bool SceneEditor::editVec3WithColorEdit3(const char *label, int index,
                                          glm::vec3 &vec) {
   bool isChanged = false;
   ImVec4 color(vec.x, vec.y, vec.z, 1.0f);
@@ -24,10 +24,49 @@ bool SceneEditor::EditVec3WithColorEdit3(const char *label, int index,
   return false;
 }
 
+bool SceneEditor::editVec3(const char *text, glm::vec3 &vec,
+                           const char *labels[3], float rangeMin,
+                           float rangeMax) {
+  bool isChanged = false;
+  float values[3] = {vec.x, vec.y, vec.z};
+  ImGui::Text("%s", text);
+  ImGui::PushID(rangeMin * rangeMax);
+  if (ImGui::SliderFloat(labels[0], &values[0], rangeMin, rangeMax)) {
+    isChanged = true;
+  }
+  if (ImGui::SliderFloat(labels[1], &values[1], rangeMin, rangeMax)) {
+    isChanged = true;
+  }
+  if (ImGui::SliderFloat(labels[2], &values[2], rangeMin, rangeMax)) {
+    isChanged = true;
+  }
+  ImGui::PopID();
+  if (isChanged) {
+    vec.x = values[0];
+    vec.y = values[1];
+    vec.z = values[2];
+  }
+  return isChanged;
+}
+
+bool SceneEditor::editSliderFloat(const char *label, float &value, float min,
+                                  float max, int index) {
+  bool isChanged = false;
+  ImGui::Text("%s", label);
+  ImGui::PushItemWidth(-1);
+  ImGui::PushID(index);
+  if (ImGui::SliderFloat("##", &value, min, max)) {
+    isChanged = true;
+  }
+  ImGui::PopID();
+  return isChanged;
+}
+
 SceneEditor::SceneEditor(const std::string &modelsFolder,
                          std::shared_ptr<Scene> scene,
+                         std::shared_ptr<Camera> camera,
                          std::shared_ptr<Settings> settings)
-    : mModelsFolder(modelsFolder), mSettings(settings) {
+    : mModelsFolder(modelsFolder), mCamera(camera), mSettings(settings) {
   mScene = scene;
   for (const auto &entry : fs::directory_iterator(mModelsFolder)) {
     std::string extension = entry.path().extension().string();
@@ -52,6 +91,8 @@ bool SceneEditor::render(float fps, int dataSize) {
     isChanged = true;
   if (modelWindow())
     isChanged = true;
+  if (editCamera())
+    isChanged = true;
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -73,7 +114,7 @@ bool SceneEditor::debugWindow(float fps, int dataSize) {
   if (ImGui::SliderInt("##BVH", &mSettings->mMaxDepth, 0, 30))
     isChanged = true;
   if (ImGui::Button(
-          ("Mode: " + std::string(mSettings->mBlack ? "BLACK" : "COLOR"))
+          ("Mode: " + std::string(mSettings->mBlack ? "FLAT" : "SHADED"))
               .c_str())) {
     mSettings->mBlack = !mSettings->mBlack;
     isChanged = true;
@@ -96,10 +137,11 @@ bool SceneEditor::modelWindow() {
   if (removeModel())
     isChanged = true;
   modelSelector();
-  if (translateModel())
+  if (transformModel())
     isChanged = true;
   if (materialEditor())
     isChanged = true;
+
   ImGui::End();
   return isChanged;
 }
@@ -114,7 +156,8 @@ bool SceneEditor::loadModel() {
     ImGui::OpenPopup("LoadModelPopup");
 
     if (ImGui::BeginPopup("LoadModelPopup")) {
-      if (ImGui::BeginCombo("Select Model",
+      ImGui::Text("Select model");
+      if (ImGui::BeginCombo("##selectModel",
                             mModelList[mSelectedLoadModelIndex].c_str())) {
         for (int i = 0; i < mModelList.size(); ++i) {
           bool isSelected = (mSelectedLoadModelIndex == i);
@@ -132,9 +175,10 @@ bool SceneEditor::loadModel() {
         mScene->add(selectedModelName);
         if (mSelectedModel == nullptr) {
           mSelectedModelIndex = 0;
-          mSelectedModel = mScene->getModel(0);
+          mSelectedModel = mScene->getModel(mSelectedModelIndex);
         } else {
-          mSelectedModel = mScene->getModel(mLoadedModelList.size());
+          mSelectedModelIndex = mLoadedModelList.size();
+          mSelectedModel = mScene->getModel(mSelectedModelIndex);
         }
         isChanged = true;
         mShowLoadModelPopup = false;
@@ -164,28 +208,59 @@ bool SceneEditor::removeModel() {
   return isChanged;
 }
 
+bool SceneEditor::transformModel() {
+  bool isChanged = false;
+  if (ImGui::CollapsingHeader("Transform")) {
+    if (translateModel())
+      isChanged = true;
+    if (scaleModel())
+      isChanged = true;
+    if (rotateModel())
+      isChanged = true;
+  }
+  return isChanged;
+}
+
+bool SceneEditor::scaleModel() {
+  bool isChanged = false;
+  if (mSelectedModel == nullptr)
+    return false;
+
+  const char *labels[3] = {"X", "Y", "Z"};
+  if (editVec3("Scale", mSelectedModel->modScale(), labels, -2, 2))
+    isChanged = true;
+  if (isChanged) {
+    mSelectedModel->update();
+    mScene->recalculate();
+  }
+  return isChanged;
+}
+
+bool SceneEditor::rotateModel() {
+  bool isChanged = false;
+  if (mSelectedModel == nullptr)
+    return false;
+
+  const char *labels[3] = {"X", "Y", "Z"};
+  if (editVec3("Rotate", mSelectedModel->modRotation(), labels, 0, 360))
+    isChanged = true;
+  if (isChanged) {
+    mSelectedModel->update();
+    mScene->recalculate();
+  }
+  return isChanged;
+}
+
 bool SceneEditor::translateModel() {
   bool isChanged = false;
   if (mSelectedModel == nullptr)
     return false;
 
-  float position[3] = {mSelectedModel->getPosition().x,
-                       mSelectedModel->getPosition().y,
-                       mSelectedModel->getPosition().z};
-  ImGui::Text("Position");
-  float tRange = 5;
-  if (ImGui::SliderFloat("X", &position[0], -tRange, tRange)) {
+  const char *labels[3] = {"X", "Y", "Z"};
+  if (editVec3("Position", mSelectedModel->modPosition(), labels, -5, 5))
     isChanged = true;
-  }
-  if (ImGui::SliderFloat("Y", &position[1], -tRange, tRange)) {
-    isChanged = true;
-  }
-  if (ImGui::SliderFloat("Z", &position[2], -tRange, tRange)) {
-    isChanged = true;
-  }
   if (isChanged) {
-    mSelectedModel->setPosition({position[0], position[1], position[2]});
-    mSelectedModel->updatePosition();
+    mSelectedModel->update();
     mScene->recalculate();
   }
   return isChanged;
@@ -205,13 +280,22 @@ void SceneEditor::modelSelector() {
 }
 
 bool SceneEditor::materialEditor() {
+  bool isChanged = false;
+  if (ImGui::CollapsingHeader("Material")) {
+    if (albedoEdit())
+      isChanged = true;
+  }
+  return isChanged;
+}
+
+bool SceneEditor::albedoEdit() {
   if (mSelectedModel == nullptr)
     return false;
   bool isChanged = false;
   ImGui::Text("Material");
   int index = 0;
   for (Mesh &mesh : mSelectedModel->modMeshes()) {
-    if (EditVec3WithColorEdit3("Diffuse", index,
+    if (editVec3WithColorEdit3("Diffuse", index,
                                mesh.modMaterial().modDiffuse())) {
       isChanged = true;
     }
@@ -221,6 +305,34 @@ bool SceneEditor::materialEditor() {
     mScene->recalculate();
   }
   return isChanged;
+}
+
+bool SceneEditor::editCamera() {
+  ImGui::Begin("Camera");
+  /* ImGui::Text("FOV");
+  ImGui::PushItemWidth(-1);
+  if (ImGui::SliderFloat("##FOV", &mCamera->modFOV(), 30, 90)) {
+    isChanged = true;
+  }
+  ImGui::Text("Move Speed");
+  ImGui::PushItemWidth(-1);
+  if (ImGui::SliderFloat("##MoveSpeed", &mCamera->modMoveSpeed(), 0, 10)) {
+    isChanged = true;
+  }
+  ImGui::Text("Rotate Speed");
+  ImGui::PushItemWidth(-1);
+  if (ImGui::SliderFloat("##RotateSpeed", &mCamera->modRotateSpeed(), 0, 2)) {
+    isChanged = true;
+  } */
+
+  bool fovChanged = editSliderFloat("FOV", mCamera->modFOV(), 30, 90, 1);
+  bool moveChanged =
+      editSliderFloat("Move Speed", mCamera->modMoveSpeed(), 0, 10, 2);
+  bool rotateChanged =
+      editSliderFloat("Rotate Speed", mCamera->modRotateSpeed(), 0, 2, 3);
+
+  ImGui::End();
+  return (fovChanged || moveChanged || rotateChanged);
 }
 
 void SceneEditor::refreshLoadedModels() {

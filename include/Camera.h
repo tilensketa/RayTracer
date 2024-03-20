@@ -16,6 +16,7 @@ public:
 
   // FOV
   const float getFOV() const { return mFOV; }
+  float &modFOV() { return mFOV; }
 
   // Position
   const glm::vec3 &getPosition() const { return mPosition; }
@@ -28,6 +29,10 @@ public:
 
   // Matrix
   const glm::mat3 &getMatrix() const { return mMatrix; }
+
+  // Speed
+  float &modMoveSpeed() { return mMoveSpeed; }
+  float &modRotateSpeed() { return mRotateSpeed; }
 
 private:
   void recalculateMatrix();

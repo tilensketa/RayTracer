@@ -27,6 +27,7 @@ private:
   void add(const Vertex &vertex);
   void add(const Triangle &triangle);
   void add(const Material &material);
+  void add(const Light &light);
 
 private:
   float mData[10000000];

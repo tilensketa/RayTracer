@@ -143,6 +143,11 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3
     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3_loader.h"
     STATUS imgui_download_status_15)
 endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp")
+  file(DOWNLOAD "https://raw.githubusercontent.com/ocornut/imgui/master/imgui_demo.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp"
+    STATUS imgui_download_status_16)
+endif()
 
 # Check if the downloads were successful
 # if(NOT imgui_download_status_1 EQUAL 0 OR
@@ -159,7 +164,8 @@ endif()
 #    NOT imgui_download_status_12 EQUAL 0 OR
 #    NOT imgui_download_status_13 EQUAL 0 OR
 #    NOT imgui_download_status_14 EQUAL 0 OR
-#    NOT imgui_download_status_15 EQUAL 0)
+#    NOT imgui_download_status_15 EQUAL 0 OR
+#    NOT imgui_download_status_16 EQUAL 0)
 #     message(FATAL_ERROR "Failed to download ImGui files.")
 # endif()
 
@@ -170,6 +176,7 @@ set(IMGUI_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_glfw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_impl_opengl3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp
 )
 
 # Find necessary packages

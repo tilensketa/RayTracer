@@ -5,6 +5,7 @@
 #define VERTICES_OFFSET 1
 #define BVH_OFFSET 2
 #define MATERIAL_OFFSET 3
+#define LIGHTS_OFFSET 4
 
 void Data::update(const Camera &camera, Scene &scene, Settings &settings) {
   updateCamera(camera, settings);
@@ -54,10 +55,17 @@ void Data::updateScene(Scene &scene, Settings &settings) {
   int matOffset = mOffset;
   for (int materialIndex : scene.getMaterialIndexes()) {
     add(matOffset + materialSum + materialsCount);
-    materialSum += materialIndex * 6; // 6 -> material size
+    materialSum += materialIndex * 3; // 3 -> material size
   }
   for (const Material &material : scene.getMaterials()) {
     add(material);
+  }
+
+  // TODO lights
+  mData[LIGHTS_OFFSET] = mOffset;
+  add(scene.getLightsCount());
+  for (const Light &light : scene.getLights()) {
+    add(light);
   }
 
   /* std::cout << "-----------------Memory block size: " << mOffset
@@ -150,5 +158,13 @@ void Data::add(const Triangle &triangle) {
 
 void Data::add(const Material &material) {
   add(material.getDiffuse());
-  add(material.getAmbient());
+  // add(material.getAmbient());
+}
+
+void Data::add(const Light &light) {
+  add(light.mType);
+  add(light.mIntensity);
+  add(light.mPosition);
+  add(light.mDirection);
+  add(light.mColor);
 }

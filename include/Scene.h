@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Light.h"
 #include "Model.h"
 #include <iostream>
 #include <memory>
@@ -9,19 +10,17 @@ class Scene {
 public:
   Scene() = default;
 
-  void add(Model model);
-  void add(const std::string& modelName);
-  void remove(const std::string& modelNameToRemove);
+  void addModel(const std::string &modelName);
+  void addLight(LightType type);
+  bool removeModel(const int modelIndex);
+  bool removeLight(const int lightIndex);
   void recalculate();
 
   // Model
   const int getModelCount() const { return mModels.size(); }
   const std::vector<Model> &getModels() const { return mModels; }
-  Model* getModel(int index);
+  Model *getModel(int index);
   std::vector<Model> &modModels() { return mModels; }
-  const std::string &getModelName(int index) {
-    return mModels[index].getName();
-  }
 
   // Triangles
   const std::vector<Triangle> &getTriangles() const { return mTriangles; }
@@ -38,10 +37,20 @@ public:
     return mMaterialIndexes;
   }
 
+  // Lights
+  const std::vector<Light> &getLights() const { return mLights; }
+  const int getLightsCount() const { return mLights.size(); }
+  Light *getLight(int index);
+
+private:
+  static int sModelsIndex;
+  static int sLightsIndex;
+
 private:
   std::vector<Model> mModels;
   std::vector<Triangle> mTriangles;
   std::vector<Vertex> mVertices;
   std::vector<Material> mMaterials;
   std::vector<int> mMaterialIndexes;
+  std::vector<Light> mLights;
 };

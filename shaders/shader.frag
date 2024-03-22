@@ -4,6 +4,10 @@ int CAMERA_OFFSET =  0;
 int VERTICES_OFFSET = 1;
 int BVH_OFFSET = 2;
 int MATERIAL_OFFSET = 3;
+int LIGHTS_OFFSET = 4;
+
+int POINT_LIGHT = 0;
+int DIRECTIONAL_LIGHT = 1;
 
 struct Ray {
   vec3 mOrigin;
@@ -24,7 +28,7 @@ struct Triangle {
 
 struct Material {
   vec3 mDiffuse;
-  vec3 mAmbient;
+  //vec3 mAmbient;
 };
 
 struct BoundingBox {
@@ -44,10 +48,19 @@ struct Settings {
   bool mBlack;
 };
 
+struct Light {
+  int mType;
+  float mIntensity;
+  vec3 mPosition;
+  vec3 mDirection;
+  vec3 mColor;
+};
+
 struct HitPayload {
   bool mHit;
   Triangle mTriangle;
   float mClosestHit;
+  vec3 mWorldPosition;
 };
 
 layout(std430, binding = 0) buffer Data
@@ -117,7 +130,7 @@ BoundingBox getAABB(inout int offset) {
 Material getMaterial(inout int offset) {
   Material material;
   material.mDiffuse = getVec3(offset);
-  material.mAmbient = getVec3(offset);
+  // material.mAmbient = getVec3(offset);
   return material;
 }
 Settings getSettings(inout int offset) {
@@ -133,6 +146,15 @@ Camera getCamera(inout int offset) {
   camera.mPosition = getVec3(offset);
   camera.mMatrix = getMat3(offset);
   return camera;
+}
+Light getLight(inout int offset) {
+  Light light;
+  light.mType = getInt(offset);
+  light.mIntensity = getFloat(offset);
+  light.mPosition = getVec3(offset);
+  light.mDirection = getVec3(offset);
+  light.mColor = getVec3(offset);
+  return light;
 }
 
 float findMinComponent(vec3 vector) {
@@ -191,11 +213,12 @@ HitPayload miss() {
   return payload;
 }
 
-HitPayload closestHit(float t, Triangle triangle) {
+HitPayload closestHit(float t, Triangle triangle, vec3 worldPosition) {
   HitPayload payload;
   payload.mHit = true;
   payload.mClosestHit = t;
   payload.mTriangle = triangle;
+  payload.mWorldPosition = worldPosition;
   return payload;
 }
 
@@ -205,6 +228,7 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
   float closestT = 1e30;
   Triangle closestTriangle;
   bool hit;
+  vec3 worldPosition;
 
   int stack[100];
   int stackPointer = 0;
@@ -227,6 +251,7 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
             if(t < closestT){
               closestT = t;
               closestTriangle = triangle;
+              worldPosition = ray.mOrigin + ray.mDirection * t;
             }
           }
         }
@@ -239,13 +264,13 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
     }
   }
   if (closestT < 1e30) {
-    return closestHit(closestT, closestTriangle);
+    return closestHit(closestT, closestTriangle, worldPosition);
   }
   return miss();
 }
 
 vec3 rayTrace(Ray ray, Settings settings) {
-  vec3 closestColor = vec3(0.1);
+  vec3 closestColor = vec3(0.0);
 
   vec3 lightDir = normalize(vec3(-1));
 
@@ -253,15 +278,41 @@ vec3 rayTrace(Ray ray, Settings settings) {
   if (payload.mHit) {
     int materialOffset = int(mData[MATERIAL_OFFSET]);
     int modelMaterialOffset = int(mData[materialOffset + payload.mTriangle.mModelIndex]);
-    int meshMaterialOffset = modelMaterialOffset + payload.mTriangle.mMeshIndex * 6; // 6 -> material size
+    int meshMaterialOffset = modelMaterialOffset + payload.mTriangle.mMeshIndex * 3; // 3 -> material size
     Material material = getMaterial(meshMaterialOffset);
 
     if (settings.mBlack) {
       return material.mDiffuse;
     }
 
-    float intensity = dot(payload.mTriangle.mNormal, -lightDir) * 0.5 + 0.5;
-    closestColor = material.mDiffuse * intensity;
+    vec3 totalColor = vec3(0.0f);
+
+    int lightsOffset = int(mData[LIGHTS_OFFSET]);
+    int lightsCount = getInt(lightsOffset);
+
+    for(int i = 0; i < lightsCount; i++) {
+      Light light = getLight(lightsOffset);
+
+      vec3 lightDirection;
+      float intensity;
+
+      if (light.mType == POINT_LIGHT) {
+        lightDirection = normalize(light.mPosition - payload.mWorldPosition);
+        float distance = length(light.mPosition - payload.mWorldPosition);
+        intensity = 1.0 / (light.mDirection.x + light.mDirection.y * distance + light.mDirection.z * distance * distance);
+      }
+      else if (light.mType == DIRECTIONAL_LIGHT) {
+        lightDirection = normalize(-light.mDirection);
+        intensity = light.mIntensity;
+      }
+
+      float diffuseIntensity = dot(payload.mTriangle.mNormal, -lightDirection) * 0.5 + 0.5;
+      vec3 diffuseColor = material.mDiffuse * diffuseIntensity;
+
+      vec3 lightContribution = diffuseColor * light.mColor * intensity;
+      totalColor += lightContribution;
+    }
+    closestColor = totalColor;
   }
   return closestColor;
 }
@@ -294,5 +345,4 @@ void main() {
 
   vec3 color = rayTrace(ray, settings);
   FragColor = vec4(color, 1.0);
-  //FragColor = vec4(1,0,0,1);
 }

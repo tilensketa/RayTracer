@@ -12,11 +12,11 @@ public:
   glm::vec3 &modDiffuse() { return mDiffuse; }
 
   // Ambient color
-  void setAmbient(const glm::vec3 &ambient) { mAmbient = ambient; }
+  /* void setAmbient(const glm::vec3 &ambient) { mAmbient = ambient; }
   const glm::vec3 &getAmbient() const { return mAmbient; }
-  glm::vec3 &modAmbient() { return mAmbient; }
+  glm::vec3 &modAmbient() { return mAmbient; } */
 
 private:
   glm::vec3 mDiffuse;
-  glm::vec3 mAmbient;
+  // glm::vec3 mAmbient;
 };

@@ -18,10 +18,15 @@ public:
 private:
   bool debugWindow(float fps, int dataSize);
   bool modelWindow();
+  bool cameraWindow();
+  bool lightsWindow();
 
+  // Model
   bool loadModel();
   bool removeModel();
   void modelSelector();
+  void refreshLoadedModels();
+  void refreshAvailableModels();
 
   bool transformModel();
   bool scaleModel();
@@ -31,14 +36,17 @@ private:
   bool materialEditor();
   bool albedoEdit();
 
-  bool editCamera();
+  // Lights
+  bool loadLight();
+  bool removeLight();
+  void lightSelector();
+  bool lightEdit();
+  void refreshLoadedLights();
 
-  void refreshLoadedModels();
   bool editVec3WithColorEdit3(const char *label, int index, glm::vec3 &vec);
-  bool editVec3(const char *text, glm::vec3 &vec, const char *opt[3],
-                float rangeMin, float rangeMax);
-  bool editSliderFloat(const char *label, float &value, float min, float max,
-                       int index);
+  bool editVec3(const char *text, glm::vec3 &vec, const char *opt[3], float min,
+                float max);
+  bool editSliderFloat(const char *text, float &value, float min, float max);
 
 public:
   std::shared_ptr<Scene> mScene;
@@ -46,17 +54,17 @@ public:
   std::shared_ptr<Camera> mCamera;
 
 private:
-  // Load model
+  // Available model
   std::string mModelsFolder;
-  std::vector<std::string> mModelList;
-  int mSelectedLoadModelIndex = 0;
-  bool mShowLoadModelPopup = false;
+  std::vector<std::string> mAvailableModelList;
 
   // Select model
   int mSelectedModelIndex = -1;
   Model *mSelectedModel = nullptr;
   std::vector<const char *> mLoadedModelList;
 
-  // Transform model
-  bool mShowTransformHeader = true;
+  // Select light
+  int mSelectedLightIndex = -1;
+  Light *mSelectedLight = nullptr;
+  std::vector<const char *> mLoadedLightsList;
 };

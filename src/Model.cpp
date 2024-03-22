@@ -2,8 +2,11 @@
 #include <glm/glm.hpp>
 #include <iostream>
 
+#include "Utilities.h"
+
 Model::Model(const std::string objPath) {
-  mName = objPath;
+  mPath = objPath;
+  mName = Utils::extractFilename(objPath);
   Assimp::Importer importer;
 
   const aiScene *scene =
@@ -19,7 +22,7 @@ Model::Model(const std::string objPath) {
   }
 
   createBoundingBox();
-  std::cout << "Model created: " << objPath << std::endl;
+  // std::cout << "Model created: " << objPath << std::endl;
 }
 
 void Model::processNode(const aiNode *node, const aiScene *scene) {
@@ -101,18 +104,9 @@ Material Model::processNodeMaterial(const aiMaterial *material) {
   if (material->Get(AI_MATKEY_COLOR_AMBIENT, ambientColor) == AI_SUCCESS) {
     glm::vec3 ambient =
         glm::vec3(ambientColor.r, ambientColor.g, ambientColor.b);
-    newMaterial.setAmbient(ambient);
+    // newMaterial.setAmbient(ambient);
   }
   return newMaterial;
-}
-
-void Model::setIndex(int id) {
-  mIndex = id;
-  for (Mesh &mesh : mMeshes) {
-    for (Triangle &triangle : mesh.modTriangles()) {
-      triangle.mModelIndex = id;
-    }
-  }
 }
 
 void Model::createBoundingBox() {
@@ -140,4 +134,13 @@ void Model::update() {
     mesh.update();
   }
   createBoundingBox();
+}
+
+void Model::setSceneIndex(int id){
+  mSceneIndex = id;
+  for(Mesh& mesh : mMeshes){
+    for(Triangle& triangle : mesh.modTriangles()){
+      triangle.mModelIndex = id;
+    }
+  }
 }

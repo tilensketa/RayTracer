@@ -57,7 +57,6 @@ void Mesh::recalculateVertex(Vertex &vertex) {
   vertex.mModedPosition = vertex.mPosition * mScale;
   // Position
   vertex.mModedPosition += mPosition;
-
   // Rotate
   glm::vec3 o = vertex.mModedPosition - mPosition;
   float alpha = glm::radians(mRotation.x);

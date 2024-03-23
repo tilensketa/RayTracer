@@ -24,3 +24,10 @@ Graphical user interface with imgui. Functionality for loading and deleting mode
 
 ![modelTransformsAndCameraGui](./renders/modelTransformsAndCameraGui.png)
 Added more options to modify and transform model. And added properties of camera.
+
+<p align="center">
+  <img src="./renders/flat.png" width="32%" alt="Flat">
+  <img src="./renders/shaded.png" width="32%" alt="Shaded">
+  <img src="./renders/wireframe.png" width="32%" alt="Wireframe">
+</p>
+Added wireframe view, downsampling, faster scene updating and some refactoring.

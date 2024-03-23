@@ -27,7 +27,15 @@ bool SceneEditor::editVec3(const char *text, glm::vec3 &vec,
                            const char *labels[3], float min, float max) {
   float values[3] = {vec.x, vec.y, vec.z};
   ImGui::Text("%s", text);
-  ImGui::PushID(min * max);
+  int index;
+  if (min * max == 0) {
+    if (min == 0)
+      index = max;
+    else
+      index = min;
+  } else
+    index = min * max;
+  ImGui::PushID(index);
   bool change1 = ImGui::SliderFloat(labels[0], &values[0], min, max);
   bool change2 = ImGui::SliderFloat(labels[1], &values[1], min, max);
   bool change3 = ImGui::SliderFloat(labels[2], &values[2], min, max);
@@ -50,6 +58,15 @@ bool SceneEditor::editSliderFloat(const char *text, float &value, float min,
   bool isChanged = ImGui::SliderFloat(id.c_str(), &value, min, max);
   return isChanged;
 }
+bool SceneEditor::editSliderInt(const char *text, int &value, int min,
+                                int max) {
+  ImGui::Text("%s", text);
+  ImGui::PushItemWidth(-1);
+  std::string id = "##";
+  id += text;
+  bool isChanged = ImGui::SliderInt(id.c_str(), &value, min, max);
+  return isChanged;
+}
 
 SceneEditor::SceneEditor(const std::string &modelsFolder,
                          std::shared_ptr<Scene> scene,
@@ -68,24 +85,35 @@ SceneEditor::SceneEditor(const std::string &modelsFolder,
   mSelectedLight = mScene->getLight(mSelectedLightIndex);
 }
 
-bool SceneEditor::render(float fps, int dataSize) {
+ChangeType SceneEditor::render(float fps, int dataSize) {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  bool debugChange = debugWindow(fps, dataSize);
-  bool modelChange = modelWindow();
-  bool cameraChange = cameraWindow();
-  bool lightsChange = lightsWindow();
+  ChangeType debugChange = debugWindow(fps, dataSize);
+  ChangeType modelChange = modelWindow();
+  ChangeType cameraChange = cameraWindow();
+  ChangeType lightsChange = lightsWindow();
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-  return debugChange || modelChange || cameraChange || lightsChange;
+  if (!debugChange && !modelChange && !cameraChange && !lightsChange)
+    return ChangeType::NoneType;
+  if (debugChange == ChangeType::BVHType || modelChange == ChangeType::BVHType)
+    return ChangeType::BVHType;
+  if (debugChange == ChangeType::SettingsType)
+    return ChangeType::SettingsType;
+  if (modelChange == ChangeType::MaterialType)
+    return ChangeType::MaterialType;
+  if (lightsChange == ChangeType::LightType)
+    return ChangeType::LightType;
+  if (cameraChange == ChangeType::CameraType)
+    return ChangeType::CameraType;
+  return ChangeType::NoneType;
 }
 
-bool SceneEditor::debugWindow(float fps, int dataSize) {
-  bool isChanged = false;
+ChangeType SceneEditor::debugWindow(float fps, int dataSize) {
   ImGui::Begin("DEBUG");
   ImGui::Text("FPS: %f", fps);
   ImGui::Text("Models: %i", mScene->getModelCount());
@@ -96,13 +124,38 @@ bool SceneEditor::debugWindow(float fps, int dataSize) {
   ImGui::Text("BVH depth:");
   ImGui::PushItemWidth(-1);
   bool bvhChange = ImGui::SliderInt("##BVH", &mSettings->mMaxDepth, 0, 30);
-  if (ImGui::Button(
-          ("Mode: " + std::string(mSettings->mBlack ? "FLAT" : "SHADED"))
-              .c_str())) {
-    mSettings->mBlack = !mSettings->mBlack;
-    isChanged = true;
-  }
+  bool viewportModeChange = viewportTypeEdit();
+  bool downsampleChange =
+      editSliderInt("Downsample Factor", mSettings->mDownsampleFactor, 1, 20);
 
+  viewSelected();
+
+  ImGui::End();
+  if (bvhChange)
+    return ChangeType::BVHType;
+  if (downsampleChange || viewportModeChange)
+    return ChangeType::SettingsType;
+  return ChangeType::NoneType;
+}
+
+bool SceneEditor::viewportTypeEdit() {
+  bool viewportModeChange = false;
+  if (ImGui::RadioButton("Flat", (int *)&mSettings->mViewportMode, Flat)) {
+    viewportModeChange = true;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Shaded", (int *)&mSettings->mViewportMode, Shaded)) {
+    viewportModeChange = true;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Wireframe", (int *)&mSettings->mViewportMode,
+                         Wireframe)) {
+    viewportModeChange = true;
+  }
+  return viewportModeChange;
+}
+
+void SceneEditor::viewSelected() {
   ImGui::Text("Selected model:");
   if (mSelectedModel != nullptr)
     ImGui::Text("%s : %i", mSelectedModel->getPath().c_str(),
@@ -115,21 +168,21 @@ bool SceneEditor::debugWindow(float fps, int dataSize) {
     ImGui::Text("%s : %i", mSelectedLight->mName.c_str(), mSelectedLightIndex);
   else
     ImGui::Text("None : %i", mSelectedLightIndex);
-
-  ImGui::End();
-  return isChanged || bvhChange;
 }
 
-bool SceneEditor::modelWindow() {
+ChangeType SceneEditor::modelWindow() {
   ImGui::Begin("Models");
   bool loadChange = loadModel();
   bool removeChange = removeModel();
   modelSelector();
   bool transformChange = transformModel();
   bool materialChange = materialEditor();
-
   ImGui::End();
-  return loadChange || removeChange || transformChange || materialChange;
+  if (loadChange || removeChange || transformChange)
+    return ChangeType::BVHType;
+  else if (materialChange)
+    return ChangeType::MaterialType;
+  return ChangeType::NoneType;
 }
 
 bool SceneEditor::loadModel() {
@@ -149,7 +202,8 @@ bool SceneEditor::loadModel() {
     } else {
       mSelectedModelIndex = mLoadedModelList.size();
     }
-    mSelectedModel = mScene->getModel(mSelectedModelIndex);
+    mSelectedModel =
+        mScene->getModel(mScene->getModels()[mSelectedModelIndex].getIndex());
     refreshLoadedModels();
   }
   return modelLoaded;
@@ -188,7 +242,7 @@ bool SceneEditor::scaleModel() {
     return false;
 
   const char *labels[3] = {"X", "Y", "Z"};
-  if (editVec3("Scale", mSelectedModel->modScale(), labels, -2, 2))
+  if (editVec3("Scale", mSelectedModel->modScale(), labels, 0.1f, 3))
     isChanged = true;
   if (isChanged) {
     mSelectedModel->update();
@@ -268,7 +322,7 @@ bool SceneEditor::albedoEdit() {
   return isChanged;
 }
 
-bool SceneEditor::cameraWindow() {
+ChangeType SceneEditor::cameraWindow() {
   ImGui::Begin("Camera");
 
   bool fovChanged = editSliderFloat("FOV", mCamera->modFOV(), 30, 90);
@@ -278,7 +332,9 @@ bool SceneEditor::cameraWindow() {
       editSliderFloat("Rotate Speed", mCamera->modRotateSpeed(), 0, 2);
 
   ImGui::End();
-  return fovChanged || moveChanged || rotateChanged;
+  if (fovChanged || moveChanged || rotateChanged)
+    return ChangeType::CameraType;
+  return ChangeType::NoneType;
 }
 
 void SceneEditor::refreshLoadedModels() {
@@ -328,20 +384,27 @@ bool SceneEditor::lightEdit() {
   if (mSelectedLight->mType == LightType::Point) {
     bool positionChanged =
         editVec3("Position", mSelectedLight->mPosition, labels, -5, 5);
-    bool constantsChanged =
-        editVec3("Parameters", mSelectedLight->mDirection, constants, 0, 1);
+    ImGui::Text("Parameters");
+    bool constantChanged =
+        ImGui::SliderFloat("Constant", &mSelectedLight->mIntensity, 0, 1);
+    bool linearChanged =
+        ImGui::SliderFloat("Linear", &mSelectedLight->mPitch, 0, 1);
+    bool quadraticChanged =
+        ImGui::SliderFloat("Quadratic", &mSelectedLight->mYaw, 0, 1);
     bool colorChanged =
         editVec3WithColorEdit3("Color", 1234, mSelectedLight->mColor);
-    if (positionChanged || constantsChanged || colorChanged)
+    if (positionChanged || constantChanged || linearChanged ||
+        quadraticChanged || colorChanged)
       lightChanged = true;
   } else if (mSelectedLight->mType == LightType::Directional) {
     bool intensityChanged =
-        editSliderFloat("Intensity", mSelectedLight->mIntensity, 0, 2);
-    bool directionChanged =
-        editVec3("Direction", mSelectedLight->mDirection, labels, 0, 1);
+        ImGui::SliderFloat("Intensity", &mSelectedLight->mIntensity, 0, 5);
+    bool pitchChanged =
+        ImGui::SliderFloat("Pitch", &mSelectedLight->mPitch, 0, 360);
+    bool yawChanged = ImGui::SliderFloat("Yaw", &mSelectedLight->mYaw, 0, 360);
     bool colorChanged =
         editVec3WithColorEdit3("Color", 1234, mSelectedLight->mColor);
-    if (intensityChanged || directionChanged || colorChanged)
+    if (intensityChanged || pitchChanged || yawChanged || colorChanged)
       lightChanged = true;
   }
   return lightChanged;
@@ -366,7 +429,8 @@ bool SceneEditor::loadLight() {
     } else {
       mSelectedLightIndex = mLoadedLightsList.size();
     }
-    mSelectedLight = mScene->getLight(mSelectedLightIndex);
+    mSelectedLight =
+        mScene->getLight(mScene->getLights()[mSelectedLightIndex].mIndex);
     refreshLoadedLights();
   }
   return lightLoaded;
@@ -387,12 +451,14 @@ bool SceneEditor::removeLight() {
   return lightRemoved;
 }
 
-bool SceneEditor::lightsWindow() {
+ChangeType SceneEditor::lightsWindow() {
   ImGui::Begin("Lights");
   bool lightLoaded = loadLight();
   bool lightRemoved = removeLight();
   lightSelector();
   bool lightChange = lightEdit();
   ImGui::End();
-  return lightChange || lightLoaded || lightRemoved;
+  if (lightChange || lightLoaded || lightRemoved)
+    return ChangeType::LightType;
+  return ChangeType::NoneType;
 }

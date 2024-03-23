@@ -1,5 +1,7 @@
 #include <glad/glad.h>
 
+#include "GLFW/glfw3.h"
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -30,9 +32,15 @@ Application::Application(unsigned int width, unsigned int height)
   mScene->addModel(MODELS "monkey.obj");
   mScene->addLight(LightType::Directional);
 
-  mSceneEditor = std::make_shared<SceneEditor>(MODELS, mScene, mCamera, mSettings);
+  mSceneEditor =
+      std::make_shared<SceneEditor>(MODELS, mScene, mCamera, mSettings);
 
-  mData->update(*mCamera, *mScene, *mSettings);
+  // mData->update(*mCamera, *mScene, *mSettings);
+  mData->updateSettings(*mSettings);
+  mData->updateCamera(*mCamera);
+  mData->updateLights(*mScene);
+  mData->updateBVH(*mScene, *mSettings);
+  mData->updateMaterial(*mScene, false);
   mDataUBO->init(*mData);
 
   mTimeStep = 0.0f;
@@ -59,7 +67,8 @@ void Application::run() {
 
     processInput();
     if (mCamera->update(mWindow.get(), mTimeStep)) {
-      mData->updateCamera(*mCamera, *mSettings);
+      // mData->updateCamera(*mCamera, *mSettings);
+      mData->updateCamera(*mCamera);
       mDataUBO->update(*mData);
     }
 
@@ -72,8 +81,22 @@ void Application::run() {
     mQuad->draw();
     mDataUBO->unbind();
 
-    if (mSceneEditor->render(fps, mData->getFloatDataSize())) {
-      mData->update(*mCamera, *mScene, *mSettings);
+    if (mShowEditor) {
+      ChangeType change = mSceneEditor->render(fps, mData->getFloatDataSize());
+      // mData->update(*mCamera, *mScene, *mSettings);
+      if (change == ChangeType::BVHType) {
+        mData->updateBVH(*mScene, *mSettings);
+        mData->updateMaterial(*mScene, false);
+      }
+      if (change == ChangeType::MaterialType)
+        mData->updateMaterial(*mScene, true);
+      if (change == ChangeType::CameraType)
+        mData->updateCamera(*mCamera);
+      if (change == ChangeType::SettingsType)
+        mData->updateSettings(*mSettings);
+      if (change == ChangeType::LightType)
+        mData->updateLights(*mScene);
+
       mDataUBO->update(*mData);
     }
 
@@ -107,6 +130,11 @@ Application::initWindow(unsigned int width, unsigned int height) {
   }
   std::cout << "Successfully created GLFW window" << std::endl;
   glfwMakeContextCurrent(window);
+  // Enable full screen mode
+  /* glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, 1920, 1080,
+                       GLFW_DONT_CARE); */
+  // Maximize the window
+  glfwMaximizeWindow(window);
   // glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -125,6 +153,13 @@ void Application::processInput() {
   if (glfwGetKey(mWindow.get(), GLFW_KEY_R) == GLFW_PRESS)
     saveImage("../renders/hello.png", mCamera->getResolution().x,
               mCamera->getResolution().y);
+  if (glfwGetKey(mWindow.get(), GLFW_KEY_N) == GLFW_PRESS) {
+    double currentTime = glfwGetTime();
+    if (currentTime - mEditorToggleTimer > 0.3) {
+      mShowEditor = !mShowEditor;
+      mEditorToggleTimer = currentTime;
+    }
+  }
 }
 
 void Application::initCallbacks() {
@@ -138,7 +173,8 @@ void Application::framebuffer_size_callback(GLFWwindow *window, int width,
   if (app) {
     glViewport(0, 0, width, height);
     app->mCamera->setResolution(width, height);
-    app->mData->updateCamera(*(app->mCamera), *(app->mSettings));
+    // app->mData->updateCamera(*(app->mCamera), *(app->mSettings));
+    app->mData->updateCamera(*(app->mCamera));
     app->mDataUBO->update(*(app->mData));
   }
 }

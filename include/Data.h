@@ -7,11 +7,14 @@
 
 class Data {
 public:
-  void update(const Camera &camera, Scene &scene, Settings &settings);
-  void updateCamera(const Camera &camera, Settings &settings);
-  void updateScene(Scene &scene, Settings &settings);
+  void updateCamera(const Camera &camera);
 
-  const int getFloatDataSize() const { return mOffset; }
+  void updateBVH(const Scene& scene, const Settings& settings);
+  void updateLights(const Scene& scene);
+  void updateSettings(const Settings& settings);
+  void updateMaterial(const Scene& scene, bool alone);
+
+  const int getFloatDataSize() const { return mDataFloatSize; }
 
 private:
   void updateNode(BVHNode *node);
@@ -32,4 +35,5 @@ private:
 private:
   float mData[10000000];
   int mOffset = 0;
+  int mDataFloatSize = 0;
 };

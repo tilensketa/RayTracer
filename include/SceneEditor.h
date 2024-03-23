@@ -7,21 +7,30 @@
 #include <memory>
 #include <string>
 
+enum ChangeType {
+  NoneType = 0,
+  CameraType,
+  SettingsType,
+  MaterialType,
+  LightType,
+  BVHType
+};
+
 class SceneEditor {
 public:
   SceneEditor(const std::string &modelsFolder, std::shared_ptr<Scene> scene,
               std::shared_ptr<Camera> camera,
               std::shared_ptr<Settings> settings);
 
-  bool render(float fps, int dataSize);
+  ChangeType render(float fps, int dataSize);
 
 private:
-  bool debugWindow(float fps, int dataSize);
-  bool modelWindow();
-  bool cameraWindow();
-  bool lightsWindow();
+  ChangeType debugWindow(float fps, int dataSize);
+  ChangeType modelWindow();
+  ChangeType cameraWindow();
+  ChangeType lightsWindow();
 
-  // Model
+  // Model Window
   bool loadModel();
   bool removeModel();
   void modelSelector();
@@ -36,17 +45,22 @@ private:
   bool materialEditor();
   bool albedoEdit();
 
-  // Lights
+  // Lights Window
   bool loadLight();
   bool removeLight();
-  void lightSelector();
   bool lightEdit();
+  void lightSelector();
   void refreshLoadedLights();
+
+  // Debug Window
+  bool viewportTypeEdit();
+  void viewSelected();
 
   bool editVec3WithColorEdit3(const char *label, int index, glm::vec3 &vec);
   bool editVec3(const char *text, glm::vec3 &vec, const char *opt[3], float min,
                 float max);
   bool editSliderFloat(const char *text, float &value, float min, float max);
+  bool editSliderInt(const char *text, int &value, int min, int max);
 
 public:
   std::shared_ptr<Scene> mScene;

@@ -57,15 +57,17 @@ if(NOT assimp_POPULATED)
   add_subdirectory(${assimp_SOURCE_DIR} ${assimp_BINARY_DIR})
 endif()
 
-# Download stb_image_write.h during configuration
-file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h"
-              "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/stb_image_write.h"
-              STATUS stb_download_status)
 
-# Check if the download was successful
-if(NOT stb_download_status EQUAL 0)
-    message(FATAL_ERROR "Failed to download stb_image_write.h: ${stb_download_status}")
+# Download stb_image_write.h during configuration
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/stb_image_write.h")
+  file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/stb_image_write.h"
+    STATUS stb_download_status)
 endif()
+# Check if the download was successful
+# if(NOT stb_download_status EQUAL 0)
+#     message(FATAL_ERROR "Failed to download stb_image_write.h: ${stb_download_status}")
+# endif()
 
 # Download ImGui source files during configuration
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/imconfig.h")

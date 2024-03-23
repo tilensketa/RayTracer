@@ -1,6 +1,9 @@
 #pragma once
 
-struct Settings{
+enum ViewportMode { Flat = 0, Shaded, Wireframe };
+
+struct Settings {
   int mMaxDepth = 10;
-  bool mBlack = false;
+  ViewportMode mViewportMode = ViewportMode::Shaded;
+  int mDownsampleFactor = 1;
 };

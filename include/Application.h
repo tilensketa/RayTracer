@@ -40,4 +40,6 @@ private:
   float mTimeStep;
   std::chrono::time_point<std::chrono::high_resolution_clock> mFrameStart,
       mFrameEnd;
+  bool mShowEditor = true;
+  double mEditorToggleTimer = 0.0;
 };

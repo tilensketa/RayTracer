@@ -1,13 +1,19 @@
 #version 430
 
-int CAMERA_OFFSET =  0;
-int VERTICES_OFFSET = 1;
-int BVH_OFFSET = 2;
-int MATERIAL_OFFSET = 3;
-int LIGHTS_OFFSET = 4;
+int BVH_OFFSET = 0;
+int MATERIAL_OFFSET = 1;
+
+int REAL_SETTINGS_OFFSET = 10;
+int REAL_CAMERA_OFFSET = 20;
+int REAL_LIGHTS_OFFSET = 40;
+int REAL_VERTICES_OFFSET = 140;
 
 int POINT_LIGHT = 0;
 int DIRECTIONAL_LIGHT = 1;
+
+int VIEWPORT_FLAT = 0;
+int VIEWPORT_SHADED = 1;
+int VIEWPORT_WIREFRAME = 2;
 
 struct Ray {
   vec3 mOrigin;
@@ -45,14 +51,16 @@ struct Camera {
 };
 
 struct Settings {
-  bool mBlack;
+  int mViewportMode;
+  int mDownsampleFactor;
 };
 
 struct Light {
   int mType;
   float mIntensity;
+  float mPitch;
+  float mYaw;
   vec3 mPosition;
-  vec3 mDirection;
   vec3 mColor;
 };
 
@@ -114,7 +122,7 @@ Triangle getTriangle(inout int offset) {
   triangle.mIndices[2] = getInt(offset);
   triangle.mNormal = getVec3(offset);
 
-  int verticesOffset = int(mData[VERTICES_OFFSET]);
+  int verticesOffset = REAL_VERTICES_OFFSET;
   for (int i = 0; i < 3; i++) {
     int vertOffset = verticesOffset + triangle.mIndices[i] * vertexSize;
     triangle.mVertices[i] = getVertex(vertOffset);
@@ -135,7 +143,8 @@ Material getMaterial(inout int offset) {
 }
 Settings getSettings(inout int offset) {
   Settings settings;
-  settings.mBlack = getBool(offset);
+  settings.mDownsampleFactor = getInt(offset);
+  settings.mViewportMode = getInt(offset);
   return settings;
 }
 Camera getCamera(inout int offset) {
@@ -151,8 +160,9 @@ Light getLight(inout int offset) {
   Light light;
   light.mType = getInt(offset);
   light.mIntensity = getFloat(offset);
+  light.mPitch = getFloat(offset);
+  light.mYaw = getFloat(offset);
   light.mPosition = getVec3(offset);
-  light.mDirection = getVec3(offset);
   light.mColor = getVec3(offset);
   return light;
 }
@@ -269,6 +279,42 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
   return miss();
 }
 
+vec3 computeBarycentricCoordinates(vec3 P, Triangle triangle) {
+  vec3 A = triangle.mVertices[0].mPosition;
+  vec3 B = triangle.mVertices[1].mPosition;
+  vec3 C = triangle.mVertices[2].mPosition;
+
+  vec3 v0 = B - A;
+  vec3 v1 = C - A;
+  vec3 v2 = P - A;
+
+  float d00 = dot(v0, v0);
+  float d01 = dot(v0, v1);
+  float d11 = dot(v1, v1);
+  float d20 = dot(v2, v0);
+  float d21 = dot(v2, v1);
+
+  float invDenom = 1.0 / (d00 * d11 - d01 * d01);
+  float v = (d11 * d20 - d01 * d21) * invDenom;
+  float w = (d00 * d21 - d01 * d20) * invDenom;
+  float u = 1.0 - v - w;
+
+  return vec3(u, v, w);
+}
+
+vec3 getDirectionVector(float pitch, float yaw) {
+  // Convert angles from degrees to radians
+  float pitchRadians = radians(pitch);
+  float yawRadians = radians(yaw);
+
+  // Calculate direction vector components
+  float x = cos(pitchRadians) * sin(yawRadians);
+  float y = sin(pitchRadians);
+  float z = cos(pitchRadians) * cos(yawRadians);
+
+  return normalize(vec3(x, y, z));
+}
+
 vec3 rayTrace(Ray ray, Settings settings) {
   vec3 closestColor = vec3(0.0);
 
@@ -281,13 +327,21 @@ vec3 rayTrace(Ray ray, Settings settings) {
     int meshMaterialOffset = modelMaterialOffset + payload.mTriangle.mMeshIndex * 3; // 3 -> material size
     Material material = getMaterial(meshMaterialOffset);
 
-    if (settings.mBlack) {
+    if (settings.mViewportMode == VIEWPORT_FLAT) {
       return material.mDiffuse;
+    }
+    else if (settings.mViewportMode == VIEWPORT_WIREFRAME){
+      vec3 barycentricCoords = computeBarycentricCoordinates(payload.mWorldPosition, payload.mTriangle);
+      float factor = 0.01;
+      if (barycentricCoords.x <= factor || barycentricCoords.y <= factor || barycentricCoords.z <= factor)
+        return vec3(0.8);
+      else
+        return closestColor;
     }
 
     vec3 totalColor = vec3(0.0f);
 
-    int lightsOffset = int(mData[LIGHTS_OFFSET]);
+    int lightsOffset = REAL_LIGHTS_OFFSET;
     int lightsCount = getInt(lightsOffset);
 
     for(int i = 0; i < lightsCount; i++) {
@@ -299,10 +353,10 @@ vec3 rayTrace(Ray ray, Settings settings) {
       if (light.mType == POINT_LIGHT) {
         lightDirection = normalize(light.mPosition - payload.mWorldPosition);
         float distance = length(light.mPosition - payload.mWorldPosition);
-        intensity = 1.0 / (light.mDirection.x + light.mDirection.y * distance + light.mDirection.z * distance * distance);
+        intensity = 1.0 / (light.mIntensity + light.mPitch * distance + light.mYaw * distance * distance);
       }
       else if (light.mType == DIRECTIONAL_LIGHT) {
-        lightDirection = normalize(-light.mDirection);
+        lightDirection = getDirectionVector(light.mPitch, light.mYaw);
         intensity = light.mIntensity;
       }
 
@@ -318,8 +372,12 @@ vec3 rayTrace(Ray ray, Settings settings) {
 }
 
 
-vec3 calculateRayDirection(vec2 screenCoords, Camera camera) {
-  vec2 normalizedCoords = screenCoords / camera.mResolution;
+vec3 calculateRayDirection(vec2 screenCoords, Camera camera, int downsampleFactor) {
+  // Calculate downsampled screen coordinates
+  vec2 downsampledCoords = floor(screenCoords / float(downsampleFactor)) * float(downsampleFactor);
+
+  //vec2 normalizedCoords = screenCoords / camera.mResolution;
+  vec2 normalizedCoords = downsampledCoords / camera.mResolution;
   vec2 ndc = vec2(normalizedCoords.x * 2 - 1, normalizedCoords.y * 2 - 1); // -1 -> 1 range
   ndc.x *= camera.mAspectRatio;
 
@@ -335,13 +393,14 @@ vec3 calculateRayDirection(vec2 screenCoords, Camera camera) {
 void main() {
   vec2 pixelCoords = gl_FragCoord.xy;
 
-  int cameraOffset = int(mData[CAMERA_OFFSET]);
-  Settings settings = getSettings(cameraOffset);
+  int cameraOffset = REAL_CAMERA_OFFSET;
+  int settingsOffset = REAL_SETTINGS_OFFSET;
+  Settings settings = getSettings(settingsOffset);
   Camera cam = getCamera(cameraOffset);
 
   Ray ray;
   ray.mOrigin = cam.mPosition;
-  ray.mDirection = calculateRayDirection(pixelCoords, cam);
+  ray.mDirection = calculateRayDirection(pixelCoords, cam, settings.mDownsampleFactor);
 
   vec3 color = rayTrace(ray, settings);
   FragColor = vec4(color, 1.0);

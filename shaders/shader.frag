@@ -1,5 +1,5 @@
 #version 430
-
+ 
 int BVH_OFFSET = 0;
 int MATERIAL_OFFSET = 1;
 
@@ -237,7 +237,6 @@ HitPayload traverseBVH(Ray ray, int nodeIndex) {
 
   float closestT = 1e30;
   Triangle closestTriangle;
-  bool hit;
   vec3 worldPosition;
 
   int stack[100];
@@ -315,10 +314,20 @@ vec3 getDirectionVector(float pitch, float yaw) {
   return normalize(vec3(x, y, z));
 }
 
+void calculateLight(Light light, HitPayload payload, out vec3 lightDirection, out float intensity) {
+  if (light.mType == POINT_LIGHT) {
+    lightDirection = normalize(light.mPosition - payload.mWorldPosition);
+    float distance = length(light.mPosition - payload.mWorldPosition);
+    intensity = 1.0 / (light.mIntensity + light.mPitch * distance + light.mYaw * distance * distance);
+  }
+  else if (light.mType == DIRECTIONAL_LIGHT) {
+    lightDirection = getDirectionVector(light.mPitch, light.mYaw);
+    intensity = light.mIntensity;
+  }
+}
+
 vec3 rayTrace(Ray ray, Settings settings) {
   vec3 closestColor = vec3(0.0);
-
-  vec3 lightDir = normalize(vec3(-1));
 
   HitPayload payload = traverseBVH(ray, 0);
   if (payload.mHit) {
@@ -349,16 +358,7 @@ vec3 rayTrace(Ray ray, Settings settings) {
 
       vec3 lightDirection;
       float intensity;
-
-      if (light.mType == POINT_LIGHT) {
-        lightDirection = normalize(light.mPosition - payload.mWorldPosition);
-        float distance = length(light.mPosition - payload.mWorldPosition);
-        intensity = 1.0 / (light.mIntensity + light.mPitch * distance + light.mYaw * distance * distance);
-      }
-      else if (light.mType == DIRECTIONAL_LIGHT) {
-        lightDirection = getDirectionVector(light.mPitch, light.mYaw);
-        intensity = light.mIntensity;
-      }
+      calculateLight(light, payload, lightDirection, intensity);
 
       float diffuseIntensity = dot(payload.mTriangle.mNormal, -lightDirection) * 0.5 + 0.5;
       vec3 diffuseColor = material.mDiffuse * diffuseIntensity;
@@ -368,9 +368,9 @@ vec3 rayTrace(Ray ray, Settings settings) {
     }
     closestColor = totalColor;
   }
+
   return closestColor;
 }
-
 
 vec3 calculateRayDirection(vec2 screenCoords, Camera camera, int downsampleFactor) {
   // Calculate downsampled screen coordinates

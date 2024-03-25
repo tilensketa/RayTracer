@@ -1,5 +1,7 @@
 #include "Mesh.h"
 
+#include <glm/gtx/euler_angles.hpp>
+
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<int> indices) {
   mVertices = vertices;
   for (int i = 0; i < indices.size(); i += 3) {
@@ -58,21 +60,9 @@ void Mesh::recalculateVertex(Vertex &vertex) {
   // Position
   vertex.mModedPosition += mPosition;
   // Rotate
+  glm::mat3 rotationMatrix =
+      glm::eulerAngleXYZ(glm::radians(mRotation.x), glm::radians(mRotation.y),
+                         glm::radians(mRotation.z));
   glm::vec3 o = vertex.mModedPosition - mPosition;
-  float alpha = glm::radians(mRotation.x);
-  float beta = glm::radians(mRotation.y);
-  float gamma = glm::radians(mRotation.z);
-  glm::vec3 mid1;
-  mid1.x = o.x;
-  mid1.y = o.y * glm::cos(alpha) - o.z * glm::sin(alpha);
-  mid1.z = o.y * glm::sin(alpha) + o.z * glm::cos(alpha);
-  glm::vec3 mid2;
-  mid2.x = mid1.x * glm::cos(beta) + mid1.z * glm::sin(beta);
-  mid2.y = mid1.y;
-  mid2.z = -mid1.x * glm::sin(beta) + mid1.z * glm::cos(beta);
-  vertex.mModedPosition.x = mid2.x * glm::cos(gamma) - mid2.y * glm::sin(gamma);
-  vertex.mModedPosition.y = mid2.x * glm::sin(gamma) + mid2.y * glm::cos(gamma);
-  vertex.mModedPosition.z = mid2.z;
-  vertex.mModedPosition += mPosition;
-
+  vertex.mModedPosition = mPosition + rotationMatrix * o;
 }

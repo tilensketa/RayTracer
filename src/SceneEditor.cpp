@@ -1,5 +1,7 @@
 #include "SceneEditor.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -7,6 +9,11 @@
 #include <filesystem>
 #include <string>
 namespace fs = std::filesystem;
+
+#define RED_IMGUI IM_COL32(255, 0, 0, 255)
+#define GREEN_IMGUI IM_COL32(0, 255, 0, 255)
+#define BLUE_IMGUI IM_COL32(0, 0, 255, 255)
+#define WHITE_IMGUI IM_COL32(255, 255, 255, 255)
 
 bool SceneEditor::editVec3WithColorEdit3(const char *label, int index,
                                          glm::vec3 &vec) {
@@ -36,9 +43,10 @@ bool SceneEditor::editVec3(const char *text, glm::vec3 &vec,
   } else
     index = min * max;
   ImGui::PushID(index);
-  bool change1 = ImGui::SliderFloat(labels[0], &values[0], min, max);
-  bool change2 = ImGui::SliderFloat(labels[1], &values[1], min, max);
-  bool change3 = ImGui::SliderFloat(labels[2], &values[2], min, max);
+  float speed = 0.1f;
+  bool change1 = ImGui::DragFloat(labels[0], &values[0], speed, min, max);
+  bool change2 = ImGui::DragFloat(labels[1], &values[1], speed, min, max);
+  bool change3 = ImGui::DragFloat(labels[2], &values[2], speed, min, max);
   ImGui::PopID();
   bool isChanged = change1 || change2 || change3;
   if (isChanged) {
@@ -72,8 +80,8 @@ SceneEditor::SceneEditor(const std::string &modelsFolder,
                          std::shared_ptr<Scene> scene,
                          std::shared_ptr<Camera> camera,
                          std::shared_ptr<Settings> settings)
-    : mModelsFolder(modelsFolder), mCamera(camera), mSettings(settings) {
-  mScene = scene;
+    : mModelsFolder(modelsFolder), mScene(scene), mCamera(camera),
+      mSettings(settings) {
 
   refreshAvailableModels();
   refreshLoadedModels();
@@ -81,8 +89,10 @@ SceneEditor::SceneEditor(const std::string &modelsFolder,
 
   mSelectedModelIndex = 0;
   mSelectedModel = mScene->getModel(mSelectedModelIndex);
-  mSelectedLightIndex = 0;
-  mSelectedLight = mScene->getLight(mSelectedLightIndex);
+  /* mSelectedLightIndex = 0;
+  mSelectedLight = mScene->getLight(mSelectedLightIndex); */
+
+  mCoordSystem = std::make_unique<CoordinateSystem>();
 }
 
 ChangeType SceneEditor::render(float fps, int dataSize) {
@@ -94,19 +104,24 @@ ChangeType SceneEditor::render(float fps, int dataSize) {
   ChangeType modelChange = modelWindow();
   ChangeType cameraChange = cameraWindow();
   ChangeType lightsChange = lightsWindow();
+  ChangeType overlayChange = overlayWindow();
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-  if (!debugChange && !modelChange && !cameraChange && !lightsChange)
+  if (!debugChange && !modelChange && !cameraChange && !lightsChange &&
+      !overlayChange)
     return ChangeType::NoneType;
-  if (debugChange == ChangeType::BVHType || modelChange == ChangeType::BVHType)
+  if (debugChange == ChangeType::BVHType ||
+      modelChange == ChangeType::BVHType ||
+      overlayChange == ChangeType::BVHType)
     return ChangeType::BVHType;
   if (debugChange == ChangeType::SettingsType)
     return ChangeType::SettingsType;
   if (modelChange == ChangeType::MaterialType)
     return ChangeType::MaterialType;
-  if (lightsChange == ChangeType::LightType)
+  if (lightsChange == ChangeType::LightType ||
+      overlayChange == ChangeType::LightType)
     return ChangeType::LightType;
   if (cameraChange == ChangeType::CameraType)
     return ChangeType::CameraType;
@@ -125,6 +140,7 @@ ChangeType SceneEditor::debugWindow(float fps, int dataSize) {
   ImGui::PushItemWidth(-1);
   bool bvhChange = ImGui::SliderInt("##BVH", &mSettings->mMaxDepth, 0, 30);
   bool viewportModeChange = viewportTypeEdit();
+  bool coordinateModeChange = coordinateSystemModeEdit();
   bool downsampleChange =
       editSliderInt("Downsample Factor", mSettings->mDownsampleFactor, 1, 20);
 
@@ -205,6 +221,8 @@ bool SceneEditor::loadModel() {
     mSelectedModel =
         mScene->getModel(mScene->getModels()[mSelectedModelIndex].getIndex());
     refreshLoadedModels();
+
+    deselectLight();
   }
   return modelLoaded;
 }
@@ -257,7 +275,7 @@ bool SceneEditor::rotateModel() {
 
   const char *labels[3] = {"X", "Y", "Z"};
   bool rotateChange =
-      editVec3("Rotate", mSelectedModel->modRotation(), labels, 0, 360);
+      editVec3("Rotate", mSelectedModel->modRotation(), labels, -360, 360);
   if (rotateChange) {
     mSelectedModel->update();
     mScene->recalculate();
@@ -271,7 +289,7 @@ bool SceneEditor::translateModel() {
 
   const char *labels[3] = {"X", "Y", "Z"};
   bool translateChange =
-      editVec3("Position", mSelectedModel->modPosition(), labels, -5, 5);
+      editVec3("Position", mSelectedModel->modPosition(), labels, -10, 10);
   if (translateChange) {
     mSelectedModel->update();
     mScene->recalculate();
@@ -288,10 +306,17 @@ void SceneEditor::modelSelector() {
                             mSelectedModelIndex == model.getIndex())) {
         mSelectedModelIndex = model.getIndex();
         mSelectedModel = mScene->getModel(mSelectedModelIndex);
+
+        deselectLight();
       }
     }
     ImGui::EndListBox();
   }
+}
+
+void SceneEditor::deselectModel() {
+  mSelectedModelIndex = -1;
+  mSelectedModel = nullptr;
 }
 
 bool SceneEditor::materialEditor() {
@@ -369,10 +394,17 @@ void SceneEditor::lightSelector() {
                             mSelectedLightIndex == light.mIndex)) {
         mSelectedLightIndex = light.mIndex;
         mSelectedLight = mScene->getLight(mSelectedLightIndex);
+
+        deselectModel();
       }
     }
     ImGui::EndListBox();
   }
+}
+
+void SceneEditor::deselectLight() {
+  mSelectedLightIndex = -1;
+  mSelectedLight = nullptr;
 }
 
 bool SceneEditor::lightEdit() {
@@ -432,6 +464,8 @@ bool SceneEditor::loadLight() {
     mSelectedLight =
         mScene->getLight(mScene->getLights()[mSelectedLightIndex].mIndex);
     refreshLoadedLights();
+
+    deselectModel();
   }
   return lightLoaded;
 }
@@ -461,4 +495,370 @@ ChangeType SceneEditor::lightsWindow() {
   if (lightChange || lightLoaded || lightRemoved)
     return ChangeType::LightType;
   return ChangeType::NoneType;
+}
+
+ChangeType SceneEditor::overlayWindow() {
+  bool modelChanged = false;
+  bool lightChanged = false;
+  ImGui::SetNextWindowPos(ImVec2(0, 0));
+  ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+  ImGui::Begin("Transparent Window", NULL,
+               ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration |
+                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                   ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar |
+                   ImGuiWindowFlags_NoInputs);
+
+  if (mSelectedModel != nullptr) {
+    if (drawCoordinateSystem(mSelectedModel->modPosition(),
+                             mSelectedModel->modRotation(),
+                             mSelectedModel->modScale())) {
+      modelChanged = true;
+      mSelectedModel->update();
+      mScene->recalculate();
+    }
+  }
+  if (mSelectedLight != nullptr) {
+    if (mSelectedLight->mType == LightType::Point) {
+      mCoordSystem->mMode = Mode::Position;
+      if (drawCoordinateSystem(mSelectedLight->mPosition,
+                               mSelectedLight->mColor,
+                               mSelectedLight->mColor)) {
+        lightChanged = true;
+      }
+    }
+  }
+
+  ImGui::End();
+  if (modelChanged)
+    return ChangeType::BVHType;
+  if (lightChanged)
+    return ChangeType::LightType;
+  return ChangeType::NoneType;
+}
+
+float Distance(const ImVec2 &p1, const ImVec2 &p2) {
+  return std::sqrt((p1.x - p2.x) * (p1.x - p2.x) +
+                   (p1.y - p2.y) * (p1.y - p2.y));
+}
+
+bool SceneEditor::coordinateSystemModeEdit() {
+  bool modeChange = false;
+  if (ImGui::RadioButton("Pos", (int *)&mCoordSystem->mMode, Position)) {
+    modeChange = true;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Rot", (int *)&mCoordSystem->mMode, Rotation)) {
+    modeChange = true;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Scale", (int *)&mCoordSystem->mMode, Scale)) {
+    modeChange = true;
+  }
+  return modeChange;
+}
+
+bool SceneEditor::drawCoordinateSystem(glm::vec3 &position, glm::vec3 &rotation,
+                                       glm::vec3 &scale) {
+  bool isChanged = false;
+
+  mCoordSystem->mPosition = position;
+  mCoordSystem->mRotation = rotation;
+  mCoordSystem->update();
+
+  if (mCoordSystem->mMode == Mode::Position) {
+    if (handlePositionSystem(position))
+      isChanged = true;
+  } else if (mCoordSystem->mMode == Mode::Rotation) {
+    if (handleRotationSystem(rotation))
+      isChanged = true;
+  } else if (mCoordSystem->mMode == Mode::Scale) {
+    if (handleScaleSystem(scale))
+      isChanged = true;
+  }
+
+  return isChanged;
+}
+
+bool SceneEditor::handleScaleSystem(glm::vec3 &scale) {
+  bool isChanged = false;
+  float thick = 2.0f;
+  float radius = 10.0f;
+
+  ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
+  ImVec2 xA = worldToScreen(mCoordSystem->mAxisX.mModedPosition);
+  ImVec2 yA = worldToScreen(mCoordSystem->mAxisY.mModedPosition);
+  ImVec2 zA = worldToScreen(mCoordSystem->mAxisZ.mModedPosition);
+
+  static ImVec2 startX, startY, startZ;
+
+  // Check if mouse is pressed within the coordinate system's X-axis
+  if (!mDraggingX && !mDraggingY && !mDraggingZ &&
+      ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    if (Distance(mousePos, xA) <= radius) {
+      mDraggingX = true;
+      startX = mousePos;
+    } else if (Distance(mousePos, yA) <= radius) {
+      mDraggingY = true;
+      startY = mousePos;
+    } else if (Distance(mousePos, zA) <= radius) {
+      mDraggingZ = true;
+      startZ = mousePos;
+    }
+  }
+  // If dragging in X-axis, update position of the coordinate system
+  if (mDraggingX) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    float deltaPixels = mousePos.x - startX.x;
+    float deltaX =
+        deltaPixels *
+        (mCoordSystem->mPosition.x - mCoordSystem->mAxisX.mModedPosition.x) /
+        (xA.x - origin.x);
+    scale.x -= deltaX;
+    startX = mousePos;
+    isChanged = true;
+  }
+  // If dragging in Y-axis, update position of the coordinate system
+  else if (mDraggingY) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    float deltaPixels = mousePos.y - startY.y;
+    float deltaY =
+        deltaPixels *
+        (mCoordSystem->mPosition.y - mCoordSystem->mAxisY.mModedPosition.y) /
+        (yA.y - origin.y);
+    scale.y -= deltaY;
+    startY = mousePos;
+    isChanged = true;
+  }
+  // If dragging in Z-axis, update position of the coordinate system
+  else if (mDraggingZ) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    float deltaPixels = mousePos.x - startZ.x;
+    float deltaZ =
+        deltaPixels *
+        (mCoordSystem->mPosition.z - mCoordSystem->mAxisZ.mModedPosition.z) /
+        (zA.x - origin.x);
+    scale.z -= deltaZ;
+    startZ = mousePos;
+    isChanged = true;
+  }
+
+  if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+    mDraggingX = false;
+    mDraggingY = false;
+    mDraggingZ = false;
+  }
+
+  ImGui::GetWindowDrawList()->AddLine(origin, xA, RED_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, yA, GREEN_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, zA, BLUE_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddCircleFilled(origin, radius, WHITE_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(xA, radius, RED_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(yA, radius, GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(zA, radius, BLUE_IMGUI);
+
+  return isChanged;
+}
+
+bool SceneEditor::handlePositionSystem(glm::vec3 &position) {
+  bool isChanged = false;
+  float thick = 2.0f;
+  float radius = 10.0f;
+
+  ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
+  ImVec2 xA = worldToScreen(mCoordSystem->mAxisX.mModedPosition);
+  ImVec2 yA = worldToScreen(mCoordSystem->mAxisY.mModedPosition);
+  ImVec2 zA = worldToScreen(mCoordSystem->mAxisZ.mModedPosition);
+
+  static ImVec2 startX, startY, startZ;
+
+  // Check if mouse is pressed within the coordinate system's X-axis
+  if (!mDraggingX && !mDraggingY && !mDraggingZ &&
+      ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    if (Distance(mousePos, xA) <= radius) {
+      mDraggingX = true;
+      startX = mousePos;
+    } else if (Distance(mousePos, yA) <= radius) {
+      mDraggingY = true;
+      startY = mousePos;
+    } else if (Distance(mousePos, zA) <= radius) {
+      mDraggingZ = true;
+      startZ = mousePos;
+    }
+  }
+  // If dragging in X-axis, update position of the coordinate system
+  if (mDraggingX) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    float deltaPixels = mousePos.x - startX.x;
+    float deltaX = deltaPixels *
+                   (position.x - mCoordSystem->mAxisX.mModedPosition.x) /
+                   (xA.x - origin.x);
+    position.x -= deltaX;
+    startX = mousePos;
+    isChanged = true;
+  }
+  // If dragging in Y-axis, update position of the coordinate system
+  else if (mDraggingY) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    float deltaPixels = mousePos.y - startY.y;
+    float deltaY = deltaPixels *
+                   (position.y - mCoordSystem->mAxisY.mModedPosition.y) /
+                   (yA.y - origin.y);
+    position.y -= deltaY;
+    startY = mousePos;
+    isChanged = true;
+  }
+  // If dragging in Z-axis, update position of the coordinate system
+  else if (mDraggingZ) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    float deltaPixels = mousePos.x - startZ.x;
+    float deltaZ = deltaPixels *
+                   (position.z - mCoordSystem->mAxisZ.mModedPosition.z) /
+                   (zA.x - origin.x);
+    position.z -= deltaZ;
+    startZ = mousePos;
+    isChanged = true;
+  }
+
+  if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+    mDraggingX = false;
+    mDraggingY = false;
+    mDraggingZ = false;
+  }
+
+  ImGui::GetWindowDrawList()->AddLine(origin, xA, RED_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, yA, GREEN_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, zA, BLUE_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddCircleFilled(origin, radius, WHITE_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(xA, radius, RED_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(yA, radius, GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(zA, radius, BLUE_IMGUI);
+
+  return isChanged;
+}
+
+bool SceneEditor::handleRotationSystem(glm::vec3 &rotation) {
+
+  bool isChanged = false;
+  float thick = 2.0f;
+  float radius = 10.0f;
+
+  ImVec2 xR[RESOLUTION];
+  ImVec2 yR[RESOLUTION];
+  ImVec2 zR[RESOLUTION];
+  ImVec2 grabX = worldToScreen(mCoordSystem->mGrabX.mModedPosition);
+  ImVec2 grabY = worldToScreen(mCoordSystem->mGrabY.mModedPosition);
+  ImVec2 grabZ = worldToScreen(mCoordSystem->mGrabZ.mModedPosition);
+  ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
+
+  for (int i = 0; i < RESOLUTION; i++) {
+    xR[i] = worldToScreen(mCoordSystem->mRotX[i].mModedPosition);
+    yR[i] = worldToScreen(mCoordSystem->mRotY[i].mModedPosition);
+    zR[i] = worldToScreen(mCoordSystem->mRotZ[i].mModedPosition);
+  }
+
+  static ImVec2 startX, startY, startZ;
+
+  if (!mRotatingX && !mRotatingY && !mRotatingZ &&
+      ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+    ImVec2 mousePos = ImGui::GetIO().MousePos;
+    if (Distance(mousePos, grabX) <= radius) {
+      mRotatingX = true;
+      startX = mousePos;
+    } else if (Distance(mousePos, grabY) <= radius) {
+      mRotatingY = true;
+      startY = mousePos;
+    } else if (Distance(mousePos, grabZ) <= radius) {
+      mRotatingZ = true;
+      startZ = mousePos;
+    }
+  }
+
+  ImVec2 mousePos = ImGui::GetIO().MousePos;
+  ImVec2 rotationVector = ImVec2(mousePos.x - origin.x, mousePos.y - origin.y);
+  float currentRotationAngle = atan2(rotationVector.y, rotationVector.x);
+
+  if (mRotatingX) {
+    float initialRotationAngle =
+        atan2(startX.y - origin.y, startX.x - origin.x);
+    float rotationAngle = (currentRotationAngle - initialRotationAngle);
+    rotation.x -= glm::degrees(rotationAngle);
+    isChanged = true;
+  } else if (mRotatingY) {
+    float initialRotationAngleY =
+        atan2(startY.y - origin.y, startY.x - origin.x);
+    float rotationAngle = currentRotationAngle - initialRotationAngleY;
+    rotation.y -= glm::degrees(rotationAngle);
+    isChanged = true;
+  } else if (mRotatingZ) {
+    float initialRotationAngleZ =
+        atan2(startZ.y - origin.y, startZ.x - origin.x);
+    float rotationAngle = currentRotationAngle - initialRotationAngleZ;
+    rotation.z -= glm::degrees(rotationAngle);
+    isChanged = true;
+  }
+  if (isChanged) {
+    startX = mousePos;
+    startY = mousePos;
+    startZ = mousePos;
+  }
+  if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+    mRotatingX = false;
+    mRotatingY = false;
+    mRotatingZ = false;
+  }
+
+  for (int i = 0; i < RESOLUTION - 1; i++) {
+    ImGui::GetWindowDrawList()->AddLine(xR[i], xR[i + 1], RED_IMGUI, thick);
+    ImGui::GetWindowDrawList()->AddLine(yR[i], yR[i + 1], GREEN_IMGUI, thick);
+    ImGui::GetWindowDrawList()->AddLine(zR[i], zR[i + 1], BLUE_IMGUI, thick);
+  }
+
+  int last = RESOLUTION - 1;
+  ImGui::GetWindowDrawList()->AddLine(xR[last], xR[0], RED_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(yR[last], yR[0], GREEN_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(zR[last], zR[0], BLUE_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddCircleFilled(origin, radius, WHITE_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(grabX, radius, RED_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(grabY, radius, GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(grabZ, radius, BLUE_IMGUI);
+
+  return isChanged;
+}
+
+ImVec2 SceneEditor::worldToScreen(const glm::vec3 &worldPos) {
+  glm::vec3 mFront = mCamera->getFront();
+  glm::vec3 mUp = mCamera->getUp();
+  glm::vec3 mPosition = mCamera->getPosition();
+  float fov = mCamera->getFOV();
+  float aspectRatio = mCamera->getAspectRatio();
+
+  // Construct the view matrix
+  glm::mat4 viewMatrix = glm::lookAt(mPosition, mPosition + mFront, mUp);
+
+  // Construct the projection matrix
+  glm::mat4 projectionMatrix =
+      glm::perspective(glm::radians(fov), aspectRatio, 0.01f, 1000.0f);
+
+  // Combine the view and projection matrices
+  glm::mat4 viewProjectionMatrix = projectionMatrix * viewMatrix;
+
+  // Transform the 3D world position to screen space
+  glm::vec4 screenPos = viewProjectionMatrix * glm::vec4(worldPos, 1.0f);
+
+  // Out of view
+  if (screenPos.z < 0.0f)
+    return ImVec2(-10, -10);
+  // Convert to normalized device coordinates
+  screenPos /= screenPos.w;
+  // Convert to ImGui screen space
+  ImVec2 screenPoint(screenPos.x * 0.5f + 0.5f, -screenPos.y * 0.5f + 0.5f);
+
+  // Convert to ImGui coordinates
+  ImVec2 screenSize = ImGui::GetIO().DisplaySize;
+  screenPoint.x *= screenSize.x;
+  screenPoint.y *= screenSize.y;
+
+  return screenPoint;
 }

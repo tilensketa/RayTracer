@@ -199,6 +199,7 @@ set(SOURCES
     src/Application.cpp
     src/SceneEditor.cpp
     src/Scene.cpp
+    src/CoordinateSystem.cpp
     # Add other source files here if any
 )
 

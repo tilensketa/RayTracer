@@ -23,6 +23,7 @@ public:
 
   // Direction
   const glm::vec3 &getFront() const { return mFront; }
+  const glm::vec3 &getUp() const { return mUp; }
 
   // Aspect ratio
   const float getAspectRatio() const { return mAspectRatio; }

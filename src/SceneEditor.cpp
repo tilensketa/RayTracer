@@ -1,4 +1,5 @@
 #include "SceneEditor.h"
+#include "Edit.h"
 
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -15,67 +16,6 @@ namespace fs = std::filesystem;
 #define BLUE_IMGUI IM_COL32(0, 0, 255, 255)
 #define WHITE_IMGUI IM_COL32(255, 255, 255, 255)
 
-bool SceneEditor::editVec3WithColorEdit3(const char *label, int index,
-                                         glm::vec3 &vec) {
-  bool isChanged = false;
-  ImVec4 color(vec.x, vec.y, vec.z, 1.0f);
-  ImGui::PushID(index);
-  if (ImGui::ColorEdit3(label, (float *)&color)) {
-    vec.x = color.x;
-    vec.y = color.y;
-    vec.z = color.z;
-    isChanged = true;
-  }
-  ImGui::PopID();
-  return isChanged;
-}
-
-bool SceneEditor::editVec3(const char *text, glm::vec3 &vec,
-                           const char *labels[3], float min, float max) {
-  float values[3] = {vec.x, vec.y, vec.z};
-  ImGui::Text("%s", text);
-  int index;
-  if (min * max == 0) {
-    if (min == 0)
-      index = max;
-    else
-      index = min;
-  } else
-    index = min * max;
-  ImGui::PushID(index);
-  float speed = 0.1f;
-  bool change1 = ImGui::DragFloat(labels[0], &values[0], speed, min, max);
-  bool change2 = ImGui::DragFloat(labels[1], &values[1], speed, min, max);
-  bool change3 = ImGui::DragFloat(labels[2], &values[2], speed, min, max);
-  ImGui::PopID();
-  bool isChanged = change1 || change2 || change3;
-  if (isChanged) {
-    vec.x = values[0];
-    vec.y = values[1];
-    vec.z = values[2];
-  }
-  return isChanged;
-}
-
-bool SceneEditor::editSliderFloat(const char *text, float &value, float min,
-                                  float max) {
-  ImGui::Text("%s", text);
-  ImGui::PushItemWidth(-1);
-  std::string id = "##";
-  id += text;
-  bool isChanged = ImGui::SliderFloat(id.c_str(), &value, min, max);
-  return isChanged;
-}
-bool SceneEditor::editSliderInt(const char *text, int &value, int min,
-                                int max) {
-  ImGui::Text("%s", text);
-  ImGui::PushItemWidth(-1);
-  std::string id = "##";
-  id += text;
-  bool isChanged = ImGui::SliderInt(id.c_str(), &value, min, max);
-  return isChanged;
-}
-
 SceneEditor::SceneEditor(const std::string &modelsFolder,
                          std::shared_ptr<Scene> scene,
                          std::shared_ptr<Camera> camera,
@@ -84,13 +24,12 @@ SceneEditor::SceneEditor(const std::string &modelsFolder,
       mSettings(settings) {
 
   refreshAvailableModels();
+  refreshDefaultModels();
   refreshLoadedModels();
   refreshLoadedLights();
 
   mSelectedModelIndex = 0;
   mSelectedModel = mScene->getModel(mSelectedModelIndex);
-  /* mSelectedLightIndex = 0;
-  mSelectedLight = mScene->getLight(mSelectedLightIndex); */
 
   mCoordSystem = std::make_unique<CoordinateSystem>();
 }
@@ -100,35 +39,53 @@ ChangeType SceneEditor::render(float fps, int dataSize) {
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  ChangeType debugChange = debugWindow(fps, dataSize);
-  ChangeType modelChange = modelWindow();
+  ChangeType settingsChange = settingsWindow();
   ChangeType cameraChange = cameraWindow();
-  ChangeType lightsChange = lightsWindow();
+  ChangeType selectorChange = selectorWindow();
   ChangeType overlayChange = overlayWindow();
+  ChangeType propertiesChange = propertiesWindow();
+  debugWindow(fps, dataSize);
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-  if (!debugChange && !modelChange && !cameraChange && !lightsChange &&
-      !overlayChange)
+  if (!settingsChange && !selectorChange && !cameraChange && !overlayChange &&
+      !propertiesChange)
     return ChangeType::NoneType;
-  if (debugChange == ChangeType::BVHType ||
-      modelChange == ChangeType::BVHType ||
-      overlayChange == ChangeType::BVHType)
+  if (settingsChange == ChangeType::BVHType ||
+      selectorChange == ChangeType::BVHType ||
+      overlayChange == ChangeType::BVHType ||
+      propertiesChange == ChangeType::BVHType)
     return ChangeType::BVHType;
-  if (debugChange == ChangeType::SettingsType)
-    return ChangeType::SettingsType;
-  if (modelChange == ChangeType::MaterialType)
+  if (propertiesChange == ChangeType::MaterialType)
     return ChangeType::MaterialType;
-  if (lightsChange == ChangeType::LightType ||
-      overlayChange == ChangeType::LightType)
+  if (settingsChange == ChangeType::SettingsType)
+    return ChangeType::SettingsType;
+  if (selectorChange == ChangeType::LightType ||
+      overlayChange == ChangeType::LightType ||
+      propertiesChange == ChangeType::LightType)
     return ChangeType::LightType;
   if (cameraChange == ChangeType::CameraType)
     return ChangeType::CameraType;
   return ChangeType::NoneType;
 }
 
-ChangeType SceneEditor::debugWindow(float fps, int dataSize) {
+ChangeType SceneEditor::selectorWindow() {
+  ImGui::Begin("Scene");
+  ImGui::Text("Models");
+  bool modelChange = modelSelector();
+  ImGui::Text("Lights");
+  bool lightChange = lightSelector();
+  ImGui::End();
+
+  if (modelChange)
+    return ChangeType::BVHType;
+  else if (lightChange)
+    return ChangeType::LightType;
+  return ChangeType::NoneType;
+}
+
+void SceneEditor::debugWindow(float fps, int dataSize) {
   ImGui::Begin("DEBUG");
   ImGui::Text("FPS: %f", fps);
   ImGui::Text("Models: %i", mScene->getModelCount());
@@ -136,18 +93,22 @@ ChangeType SceneEditor::debugWindow(float fps, int dataSize) {
   ImGui::Text("Vertices: %i", mScene->getVerticesCount());
   ImGui::Text("Materials: %i", mScene->getMaterialsCount());
   ImGui::Text("Data: %i", dataSize);
-  ImGui::Text("BVH depth:");
-  ImGui::PushItemWidth(-1);
-  bool bvhChange = ImGui::SliderInt("##BVH", &mSettings->mMaxDepth, 0, 30);
+  viewSelected();
+  ImGui::End();
+}
+
+ChangeType SceneEditor::settingsWindow() {
+  ImGui::Begin("SETTINGS");
+  bool depthChange = Edit::slider("BVH depth", mSettings->mMaxDepth, 0, 30);
+  bool triangleChange =
+      Edit::slider("BVH triangles", mSettings->mMaxTrianglesInLeaf, 0, 100);
   bool viewportModeChange = viewportTypeEdit();
   bool coordinateModeChange = coordinateSystemModeEdit();
   bool downsampleChange =
-      editSliderInt("Downsample Factor", mSettings->mDownsampleFactor, 1, 20);
-
-  viewSelected();
+      Edit::slider("Downsample", mSettings->mDownsampleFactor, 1, 20);
 
   ImGui::End();
-  if (bvhChange)
+  if (depthChange || triangleChange)
     return ChangeType::BVHType;
   if (downsampleChange || viewportModeChange)
     return ChangeType::SettingsType;
@@ -186,96 +147,17 @@ void SceneEditor::viewSelected() {
     ImGui::Text("None : %i", mSelectedLightIndex);
 }
 
-ChangeType SceneEditor::modelWindow() {
-  ImGui::Begin("Models");
-  bool loadChange = loadModel();
-  bool removeChange = removeModel();
-  modelSelector();
-  bool transformChange = transformModel();
-  bool materialChange = materialEditor();
-  ImGui::End();
-  if (loadChange || removeChange || transformChange)
-    return ChangeType::BVHType;
-  else if (materialChange)
-    return ChangeType::MaterialType;
-  return ChangeType::NoneType;
-}
-
-bool SceneEditor::loadModel() {
-  bool modelLoaded = false;
-  if (ImGui::BeginMenu("Add")) {
-    for (const std::string availableModelName : mAvailableModelList) {
-      if (ImGui::MenuItem(availableModelName.c_str())) {
-        mScene->addModel(mModelsFolder + availableModelName);
-        modelLoaded = true;
-      }
-    }
-    ImGui::EndMenu();
-  }
-  if (modelLoaded) {
-    if (mSelectedModel == nullptr) {
-      mSelectedModelIndex = 0;
-    } else {
-      mSelectedModelIndex = mLoadedModelList.size();
-    }
-    mSelectedModel =
-        mScene->getModel(mScene->getModels()[mSelectedModelIndex].getIndex());
-    refreshLoadedModels();
-
-    deselectLight();
-  }
-  return modelLoaded;
-}
-
-bool SceneEditor::removeModel() {
-  bool isChanged = false;
-  if (ImGui::Button("Remove model")) {
-    if (mSelectedModel == nullptr)
-      return false;
-    if (mScene->removeModel(mSelectedModelIndex)) {
-      isChanged = true;
-      mSelectedModel = nullptr;
-      mSelectedModelIndex = -1;
-      refreshLoadedModels();
-    }
-  }
-  return isChanged;
-}
-
-bool SceneEditor::transformModel() {
-  bool isChanged = false;
-  if (ImGui::CollapsingHeader("Transform")) {
-    bool translateChange = translateModel();
-    bool scaleChange = scaleModel();
-    bool rotateChange = rotateModel();
-    if (translateChange || scaleChange || rotateChange)
-      isChanged = true;
-  }
-  return isChanged;
-}
-
 bool SceneEditor::scaleModel() {
-  bool isChanged = false;
-  if (mSelectedModel == nullptr)
-    return false;
-
-  const char *labels[3] = {"X", "Y", "Z"};
-  if (editVec3("Scale", mSelectedModel->modScale(), labels, 0.1f, 3))
-    isChanged = true;
-  if (isChanged) {
+  bool scaleChange = Edit::vec3("Scale", mSelectedModel->modScale());
+  if (scaleChange) {
     mSelectedModel->update();
     mScene->recalculate();
   }
-  return isChanged;
+  return scaleChange;
 }
 
 bool SceneEditor::rotateModel() {
-  if (mSelectedModel == nullptr)
-    return false;
-
-  const char *labels[3] = {"X", "Y", "Z"};
-  bool rotateChange =
-      editVec3("Rotate", mSelectedModel->modRotation(), labels, -360, 360);
+  bool rotateChange = Edit::vec3("Rotate", mSelectedModel->modRotation());
   if (rotateChange) {
     mSelectedModel->update();
     mScene->recalculate();
@@ -284,12 +166,7 @@ bool SceneEditor::rotateModel() {
 }
 
 bool SceneEditor::translateModel() {
-  if (mSelectedModel == nullptr)
-    return false;
-
-  const char *labels[3] = {"X", "Y", "Z"};
-  bool translateChange =
-      editVec3("Position", mSelectedModel->modPosition(), labels, -10, 10);
+  bool translateChange = Edit::vec3("Position", mSelectedModel->modPosition());
   if (translateChange) {
     mSelectedModel->update();
     mScene->recalculate();
@@ -297,46 +174,117 @@ bool SceneEditor::translateModel() {
   return translateChange;
 }
 
-void SceneEditor::modelSelector() {
-  ImVec2 size(-1, 5 * ImGui::GetTextLineHeightWithSpacing());
+bool SceneEditor::modelSelector() {
+  bool modelRemoved = false;
+  bool modelLoaded = false;
+
+  ImVec2 size(-1, 10 * ImGui::GetTextLineHeightWithSpacing());
+
   if (ImGui::BeginListBox("LoadedModels", size)) {
     for (const Model &model : mScene->getModels()) {
       std::string name = model.getName();
       if (ImGui::Selectable(name.c_str(),
                             mSelectedModelIndex == model.getIndex())) {
+        deselectAll();
         mSelectedModelIndex = model.getIndex();
+        /* mSelectedModel = mScene->getModel(
+            mScene->getModels()[mSelectedModelIndex].getIndex()); */
         mSelectedModel = mScene->getModel(mSelectedModelIndex);
-
-        deselectLight();
       }
+      handleRemovingModel(model.getSceneIndex());
     }
+    if (removeModel())
+      modelRemoved = true;
+
+    if (handleLoadingModel())
+      modelLoaded = true;
+
     ImGui::EndListBox();
+  }
+  if (modelLoaded) {
+    loadModel();
+  }
+  return modelRemoved || modelLoaded;
+}
+
+void SceneEditor::handleRemovingModel(int index) {
+  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+    mSelectedModelIndex = index;
+    mSelectedModel =
+        mScene->getModel(mScene->getModels()[mSelectedModelIndex].getIndex());
+    if (!ImGui::IsPopupOpen("RemoveModelMenu")) {
+      ImGui::OpenPopup("RemoveModelMenu");
+    }
   }
 }
 
-void SceneEditor::deselectModel() {
-  mSelectedModelIndex = -1;
-  mSelectedModel = nullptr;
+bool SceneEditor::removeModel() {
+  bool modelRemoved = false;
+  if (ImGui::BeginPopup("RemoveModelMenu")) {
+    if (ImGui::MenuItem("RemoveModel")) {
+      mScene->removeModel(mSelectedModel->getIndex());
+      modelRemoved = true;
+      deselectAll();
+      refreshLoadedModels();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
+  return modelRemoved;
+}
+
+bool SceneEditor::handleLoadingModel() {
+  bool modelLoaded = false;
+  if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+      ImGui::OpenPopup("AddModelMenu");
+    }
+  }
+  if (ImGui::BeginPopup("AddModelMenu")) {
+    if (ImGui::BeginMenu("Default")) {
+      for (const std::string defaultModelName : mDefaultModelList) {
+        if (ImGui::MenuItem(defaultModelName.c_str())) {
+          mScene->addModel(mModelsFolder + "Default/" + defaultModelName);
+          modelLoaded = true;
+        }
+      }
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Custom")) {
+      for (const std::string availableModelName : mAvailableModelList) {
+        if (ImGui::MenuItem(availableModelName.c_str())) {
+          mScene->addModel(mModelsFolder + availableModelName);
+          modelLoaded = true;
+        }
+      }
+      ImGui::EndMenu();
+    }
+    ImGui::EndPopup();
+  }
+  return modelLoaded;
+}
+
+void SceneEditor::loadModel() {
+  deselectAll();
+  mSelectedModelIndex = mScene->getModelCount() - 1;
+  mSelectedModel =
+      mScene->getModel(mScene->getModels()[mSelectedModelIndex].getIndex());
+  refreshLoadedModels();
 }
 
 bool SceneEditor::materialEditor() {
   bool isChanged = false;
-  if (ImGui::CollapsingHeader("Material")) {
-    if (albedoEdit())
-      isChanged = true;
-  }
+  ImGui::Text("MATERIAL");
+  if (albedoEdit())
+    isChanged = true;
   return isChanged;
 }
 
 bool SceneEditor::albedoEdit() {
-  if (mSelectedModel == nullptr)
-    return false;
   bool isChanged = false;
-  ImGui::Text("Material");
   int index = 0;
   for (Mesh &mesh : mSelectedModel->modMeshes()) {
-    if (editVec3WithColorEdit3("Diffuse", index,
-                               mesh.modMaterial().modDiffuse())) {
+    if (Edit::colorEdit3("Diffuse", mesh.modMaterial().modDiffuse())) {
       isChanged = true;
     }
     index++;
@@ -350,11 +298,11 @@ bool SceneEditor::albedoEdit() {
 ChangeType SceneEditor::cameraWindow() {
   ImGui::Begin("Camera");
 
-  bool fovChanged = editSliderFloat("FOV", mCamera->modFOV(), 30, 90);
+  bool fovChanged = Edit::slider("FOV", mCamera->modFOV(), 30.0f, 90.0f);
   bool moveChanged =
-      editSliderFloat("Move Speed", mCamera->modMoveSpeed(), 0, 10);
+      Edit::slider("Move Speed", mCamera->modMoveSpeed(), 0.0f, 10.0f);
   bool rotateChanged =
-      editSliderFloat("Rotate Speed", mCamera->modRotateSpeed(), 0, 2);
+      Edit::slider("Rotate Speed", mCamera->modRotateSpeed(), 0.0f, 2.0f);
 
   ImGui::End();
   if (fovChanged || moveChanged || rotateChanged)
@@ -386,65 +334,82 @@ void SceneEditor::refreshAvailableModels() {
   }
 }
 
-void SceneEditor::lightSelector() {
-  ImVec2 size(-1, 5 * ImGui::GetTextLineHeightWithSpacing());
-  if (ImGui::BeginListBox("Lights", size)) {
+void SceneEditor::refreshDefaultModels() {
+  mDefaultModelList.clear();
+  for (const auto &entry : fs::directory_iterator(mModelsFolder + "Default/")) {
+    std::string extension = entry.path().extension().string();
+    if (extension == ".obj" || extension == ".fbx") {
+      std::string filename = entry.path().filename().string();
+      mDefaultModelList.push_back(filename);
+    }
+  }
+}
+
+bool SceneEditor::lightSelector() {
+  bool lightRemoved = false;
+  bool lightLoaded = false;
+
+  ImVec2 size(-1, 10 * ImGui::GetTextLineHeightWithSpacing());
+
+  if (ImGui::BeginListBox("LoadedLights", size)) {
     for (const Light &light : mScene->getLights()) {
-      if (ImGui::Selectable(light.mName.c_str(),
+      std::string name = light.mName;
+      if (ImGui::Selectable(name.c_str(),
                             mSelectedLightIndex == light.mIndex)) {
+        deselectAll();
         mSelectedLightIndex = light.mIndex;
         mSelectedLight = mScene->getLight(mSelectedLightIndex);
-
-        deselectModel();
       }
+      handleRemovingLight(light.mIndex);
     }
+    if (removeLight())
+      lightRemoved = true;
+
+    if (handleLoadingLight())
+      lightLoaded = true;
+
     ImGui::EndListBox();
   }
-}
-
-void SceneEditor::deselectLight() {
-  mSelectedLightIndex = -1;
-  mSelectedLight = nullptr;
-}
-
-bool SceneEditor::lightEdit() {
-  if (mSelectedLight == nullptr)
-    return false;
-  const char *labels[3] = {"X", "Y", "Z"};
-  const char *constants[3] = {"Constant", "Linear", "Quadratic"};
-  bool lightChanged = false;
-  if (mSelectedLight->mType == LightType::Point) {
-    bool positionChanged =
-        editVec3("Position", mSelectedLight->mPosition, labels, -5, 5);
-    ImGui::Text("Parameters");
-    bool constantChanged =
-        ImGui::SliderFloat("Constant", &mSelectedLight->mIntensity, 0, 1);
-    bool linearChanged =
-        ImGui::SliderFloat("Linear", &mSelectedLight->mPitch, 0, 1);
-    bool quadraticChanged =
-        ImGui::SliderFloat("Quadratic", &mSelectedLight->mYaw, 0, 1);
-    bool colorChanged =
-        editVec3WithColorEdit3("Color", 1234, mSelectedLight->mColor);
-    if (positionChanged || constantChanged || linearChanged ||
-        quadraticChanged || colorChanged)
-      lightChanged = true;
-  } else if (mSelectedLight->mType == LightType::Directional) {
-    bool intensityChanged =
-        ImGui::SliderFloat("Intensity", &mSelectedLight->mIntensity, 0, 5);
-    bool pitchChanged =
-        ImGui::SliderFloat("Pitch", &mSelectedLight->mPitch, 0, 360);
-    bool yawChanged = ImGui::SliderFloat("Yaw", &mSelectedLight->mYaw, 0, 360);
-    bool colorChanged =
-        editVec3WithColorEdit3("Color", 1234, mSelectedLight->mColor);
-    if (intensityChanged || pitchChanged || yawChanged || colorChanged)
-      lightChanged = true;
+  if (lightLoaded) {
+    loadLight();
   }
-  return lightChanged;
+  return lightLoaded || lightRemoved;
 }
 
-bool SceneEditor::loadLight() {
+void SceneEditor::handleRemovingLight(int index) {
+  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+    mSelectedLightIndex = index;
+    mSelectedLight = mScene->getLight(mSelectedLightIndex);
+    if (!ImGui::IsPopupOpen("RemoveLightMenu")) {
+      ImGui::OpenPopup("RemoveLightMenu");
+    }
+  }
+}
+
+bool SceneEditor::removeLight() {
+  bool lightRemoved = false;
+  if (ImGui::BeginPopup("RemoveLightMenu")) {
+    if (ImGui::MenuItem("RemoveLight")) {
+      mScene->removeLight(mSelectedLight->mIndex);
+      lightRemoved = true;
+      mSelectedLight = nullptr;
+      mSelectedLightIndex = -1;
+      refreshLoadedLights();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
+  return lightRemoved;
+}
+
+bool SceneEditor::handleLoadingLight() {
   bool lightLoaded = false;
-  if (ImGui::BeginMenu("Add")) {
+  if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+      ImGui::OpenPopup("AddLightMenu");
+    }
+  }
+  if (ImGui::BeginPopup("AddLightMenu")) {
     if (ImGui::MenuItem("Point Light")) {
       mScene->addLight(LightType::Point);
       lightLoaded = true;
@@ -453,47 +418,96 @@ bool SceneEditor::loadLight() {
       mScene->addLight(LightType::Directional);
       lightLoaded = true;
     }
-    ImGui::EndMenu();
-  }
-  if (lightLoaded) {
-    if (mSelectedLight == nullptr) {
-      mSelectedLightIndex = 0;
-    } else {
-      mSelectedLightIndex = mLoadedLightsList.size();
-    }
-    mSelectedLight =
-        mScene->getLight(mScene->getLights()[mSelectedLightIndex].mIndex);
-    refreshLoadedLights();
-
-    deselectModel();
+    ImGui::EndPopup();
   }
   return lightLoaded;
 }
 
-bool SceneEditor::removeLight() {
-  bool lightRemoved = false;
-  if (ImGui::Button("Remove light")) {
-    if (mSelectedLight == nullptr)
-      return false;
-    if (mScene->removeLight(mSelectedLight->mIndex)) {
-      lightRemoved = true;
-      mSelectedLight = nullptr;
-      mSelectedLightIndex = -1;
-      refreshLoadedLights();
-    }
-  }
-  return lightRemoved;
+void SceneEditor::loadLight() {
+  deselectAll();
+  mSelectedLightIndex = mScene->getLightsCount() - 1;
+  mSelectedLight =
+      mScene->getLight(mScene->getLights()[mSelectedLightIndex].mIndex);
+  refreshLoadedLights();
 }
 
-ChangeType SceneEditor::lightsWindow() {
-  ImGui::Begin("Lights");
-  bool lightLoaded = loadLight();
-  bool lightRemoved = removeLight();
-  lightSelector();
-  bool lightChange = lightEdit();
+void SceneEditor::deselectAll() {
+  mSelectedModel = nullptr;
+  mSelectedModelIndex = -1;
+  mSelectedLight = nullptr;
+  mSelectedLightIndex = -1;
+}
+
+bool SceneEditor::lightEdit() {
+  if (mSelectedLight == nullptr)
+    return false;
+  bool lightChanged = false;
+  if (mSelectedLight->mType == LightType::Point) {
+    if (editPointLight())
+      lightChanged = true;
+  } else if (mSelectedLight->mType == LightType::Directional) {
+    if (editDirectionalLight())
+      lightChanged = true;
+  }
+  return lightChanged;
+}
+
+bool SceneEditor::editPointLight() {
+  bool positionChanged = Edit::vec3("Position", mSelectedLight->mPosition);
+  bool constantChanged =
+      Edit::slider("Intensity", mSelectedLight->mIntensity, 0, 5);
+  bool colorChanged = Edit::colorEdit3("Color", mSelectedLight->mColor);
+  return positionChanged || constantChanged || colorChanged;
+}
+
+bool SceneEditor::editDirectionalLight() {
+  bool positionChanged = Edit::vec3("Position", mSelectedLight->mPosition);
+  bool intensityChanged =
+      Edit::slider("Intensity", mSelectedLight->mIntensity, 0, 5);
+  bool pitchChanged = Edit::slider("Pitch", mSelectedLight->mPitch, 0, 360);
+  bool yawChanged = Edit::slider("Yaw", mSelectedLight->mYaw, 0, 360);
+  bool colorChanged = Edit::colorEdit3("Color", mSelectedLight->mColor);
+  return positionChanged || intensityChanged || pitchChanged || yawChanged ||
+         colorChanged;
+}
+
+ChangeType SceneEditor::propertiesWindow() {
+  ChangeType modelChange = ChangeType::NoneType;
+  bool lightChange = false;
+
+  ImGui::Begin("Properties");
+  if (mSelectedModel != nullptr) {
+    ImGui::Text("%s", mSelectedModel->getName().c_str());
+    ImGui::Separator();
+    modelChange = editModel();
+  } else if (mSelectedLight != nullptr) {
+    ImGui::Text("%s", mSelectedLight->mName.c_str());
+    ImGui::Separator();
+    if (lightEdit())
+      lightChange = true;
+  }
   ImGui::End();
-  if (lightChange || lightLoaded || lightRemoved)
+
+  if (modelChange == ChangeType::BVHType)
+    return ChangeType::BVHType;
+  else if (modelChange == ChangeType::MaterialType)
+    return ChangeType::MaterialType;
+  else if (lightChange)
     return ChangeType::LightType;
+  return ChangeType::NoneType;
+}
+
+ChangeType SceneEditor::editModel() {
+  ImGui::Text("TRANSFORM");
+  bool translateChange = translateModel();
+  bool scaleChange = scaleModel();
+  bool rotateChange = rotateModel();
+  bool materialChange = materialEditor();
+
+  if (translateChange || scaleChange || rotateChange)
+    return ChangeType::BVHType;
+  else if (materialChange)
+    return ChangeType::MaterialType;
   return ChangeType::NoneType;
 }
 
@@ -518,13 +532,10 @@ ChangeType SceneEditor::overlayWindow() {
     }
   }
   if (mSelectedLight != nullptr) {
-    if (mSelectedLight->mType == LightType::Point) {
-      mCoordSystem->mMode = Mode::Position;
-      if (drawCoordinateSystem(mSelectedLight->mPosition,
-                               mSelectedLight->mColor,
-                               mSelectedLight->mColor)) {
-        lightChanged = true;
-      }
+    mCoordSystem->mMode = Mode::Position;
+    if (drawCoordinateSystem(mSelectedLight->mPosition, mSelectedLight->mColor,
+                             mSelectedLight->mColor)) {
+      lightChanged = true;
     }
   }
 
@@ -585,59 +596,58 @@ bool SceneEditor::handleScaleSystem(glm::vec3 &scale) {
   float radius = 10.0f;
 
   ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
-  ImVec2 xA = worldToScreen(mCoordSystem->mAxisX.mModedPosition);
-  ImVec2 yA = worldToScreen(mCoordSystem->mAxisY.mModedPosition);
-  ImVec2 zA = worldToScreen(mCoordSystem->mAxisZ.mModedPosition);
+  ImVec2 scaleAxis[3];
+  for (int i = 0; i < 3; i++) {
+    scaleAxis[i] = worldToScreen(mCoordSystem->mScaleAxis[i].mModedPosition);
+  }
 
   static ImVec2 startX, startY, startZ;
 
+  ImVec2 mousePos = ImGui::GetIO().MousePos;
   // Check if mouse is pressed within the coordinate system's X-axis
   if (!mDraggingX && !mDraggingY && !mDraggingZ &&
       ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
     ImVec2 mousePos = ImGui::GetIO().MousePos;
-    if (Distance(mousePos, xA) <= radius) {
+    if (Distance(mousePos, scaleAxis[0]) <= radius) {
       mDraggingX = true;
       startX = mousePos;
-    } else if (Distance(mousePos, yA) <= radius) {
+    } else if (Distance(mousePos, scaleAxis[1]) <= radius) {
       mDraggingY = true;
       startY = mousePos;
-    } else if (Distance(mousePos, zA) <= radius) {
+    } else if (Distance(mousePos, scaleAxis[2]) <= radius) {
       mDraggingZ = true;
       startZ = mousePos;
     }
   }
   // If dragging in X-axis, update position of the coordinate system
   if (mDraggingX) {
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
     float deltaPixels = mousePos.x - startX.x;
-    float deltaX =
-        deltaPixels *
-        (mCoordSystem->mPosition.x - mCoordSystem->mAxisX.mModedPosition.x) /
-        (xA.x - origin.x);
+    float deltaX = deltaPixels *
+                   (mCoordSystem->mPosition.x -
+                    mCoordSystem->mPositionAxis[0].mModedPosition.x) /
+                   (scaleAxis[0].x - origin.x);
     scale.x -= deltaX;
     startX = mousePos;
     isChanged = true;
   }
   // If dragging in Y-axis, update position of the coordinate system
   else if (mDraggingY) {
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
     float deltaPixels = mousePos.y - startY.y;
-    float deltaY =
-        deltaPixels *
-        (mCoordSystem->mPosition.y - mCoordSystem->mAxisY.mModedPosition.y) /
-        (yA.y - origin.y);
+    float deltaY = deltaPixels *
+                   (mCoordSystem->mPosition.y -
+                    mCoordSystem->mPositionAxis[1].mModedPosition.y) /
+                   (scaleAxis[1].y - origin.y);
     scale.y -= deltaY;
     startY = mousePos;
     isChanged = true;
   }
   // If dragging in Z-axis, update position of the coordinate system
   else if (mDraggingZ) {
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
     float deltaPixels = mousePos.x - startZ.x;
-    float deltaZ =
-        deltaPixels *
-        (mCoordSystem->mPosition.z - mCoordSystem->mAxisZ.mModedPosition.z) /
-        (zA.x - origin.x);
+    float deltaZ = deltaPixels *
+                   (mCoordSystem->mPosition.z -
+                    mCoordSystem->mPositionAxis[2].mModedPosition.z) /
+                   (scaleAxis[2].x - origin.x);
     scale.z -= deltaZ;
     startZ = mousePos;
     isChanged = true;
@@ -649,13 +659,14 @@ bool SceneEditor::handleScaleSystem(glm::vec3 &scale) {
     mDraggingZ = false;
   }
 
-  ImGui::GetWindowDrawList()->AddLine(origin, xA, RED_IMGUI, thick);
-  ImGui::GetWindowDrawList()->AddLine(origin, yA, GREEN_IMGUI, thick);
-  ImGui::GetWindowDrawList()->AddLine(origin, zA, BLUE_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, scaleAxis[0], RED_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, scaleAxis[1], GREEN_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, scaleAxis[2], BLUE_IMGUI, thick);
   ImGui::GetWindowDrawList()->AddCircleFilled(origin, radius, WHITE_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(xA, radius, RED_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(yA, radius, GREEN_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(zA, radius, BLUE_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(scaleAxis[0], radius, RED_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(scaleAxis[1], radius,
+                                              GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(scaleAxis[2], radius, BLUE_IMGUI);
 
   return isChanged;
 }
@@ -666,59 +677,135 @@ bool SceneEditor::handlePositionSystem(glm::vec3 &position) {
   float radius = 10.0f;
 
   ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
-  ImVec2 xA = worldToScreen(mCoordSystem->mAxisX.mModedPosition);
-  ImVec2 yA = worldToScreen(mCoordSystem->mAxisY.mModedPosition);
-  ImVec2 zA = worldToScreen(mCoordSystem->mAxisZ.mModedPosition);
+  ImVec2 positionAxis[3];
+  for (int i = 0; i < 3; i++) {
+    positionAxis[i] =
+        worldToScreen(mCoordSystem->mPositionAxis[i].mModedPosition);
+  }
+
+  ImVec2 xyPlane[5];
+  ImVec2 xzPlane[5];
+  ImVec2 yzPlane[5];
+  for (int i = 0; i < 5; i++) {
+    xyPlane[i] = worldToScreen(mCoordSystem->mPlaneXY[i].mModedPosition);
+    xzPlane[i] = worldToScreen(mCoordSystem->mPlaneXZ[i].mModedPosition);
+    yzPlane[i] = worldToScreen(mCoordSystem->mPlaneYZ[i].mModedPosition);
+  }
 
   static ImVec2 startX, startY, startZ;
+  static ImVec2 startXY, startXZ, startYZ;
+
+  ImVec2 mousePos = ImGui::GetIO().MousePos;
 
   // Check if mouse is pressed within the coordinate system's X-axis
   if (!mDraggingX && !mDraggingY && !mDraggingZ &&
       ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
-    if (Distance(mousePos, xA) <= radius) {
+    if (Distance(mousePos, xyPlane[4]) <= radius) {
+      mDraggingX = true;
+      mDraggingY = true;
+      startXY = mousePos;
+    } else if (Distance(mousePos, xzPlane[4]) <= radius) {
+      mDraggingX = true;
+      mDraggingZ = true;
+      startXZ = mousePos;
+    } else if (Distance(mousePos, yzPlane[4]) <= radius) {
+      mDraggingY = true;
+      mDraggingZ = true;
+      startYZ = mousePos;
+    } else if (Distance(mousePos, positionAxis[0]) <= radius) {
       mDraggingX = true;
       startX = mousePos;
-    } else if (Distance(mousePos, yA) <= radius) {
+    } else if (Distance(mousePos, positionAxis[1]) <= radius) {
       mDraggingY = true;
       startY = mousePos;
-    } else if (Distance(mousePos, zA) <= radius) {
+    } else if (Distance(mousePos, positionAxis[2]) <= radius) {
       mDraggingZ = true;
       startZ = mousePos;
     }
   }
+
+  if (mDraggingX && mDraggingY) {
+    // Dragging in both X and Y axes
+    ImVec2 delta = ImVec2(mousePos.x - startXY.x, mousePos.y - startXY.y);
+    float deltaX =
+        delta.x *
+        (position.x - mCoordSystem->mPositionAxis[0].mModedPosition.x) /
+        (positionAxis[0].x - origin.x);
+    float deltaY =
+        delta.y *
+        (position.y - mCoordSystem->mPositionAxis[1].mModedPosition.y) /
+        (positionAxis[1].y - origin.y);
+    position.x -= deltaX;
+    position.y -= deltaY;
+    isChanged = true;
+  } else if (mDraggingX && mDraggingZ) {
+    // Dragging in XZ axes
+    ImVec2 delta = ImVec2(mousePos.x - startXZ.x, mousePos.y - startXZ.y);
+    float deltaX =
+        delta.x *
+        (position.x - mCoordSystem->mPositionAxis[0].mModedPosition.x) /
+        (positionAxis[0].x - origin.x);
+    float deltaZ =
+        delta.y *
+        (position.z - mCoordSystem->mPositionAxis[2].mModedPosition.z) /
+        (positionAxis[2].y - origin.y);
+    position.x -= deltaX;
+    position.z -= deltaZ;
+    isChanged = true;
+  } else if (mDraggingY && mDraggingZ) {
+    // Dragging in YZ axes
+    ImVec2 delta = ImVec2(mousePos.x - startYZ.x, mousePos.y - startYZ.y);
+    float deltaY =
+        delta.y *
+        (position.y - mCoordSystem->mPositionAxis[1].mModedPosition.y) /
+        (positionAxis[1].y - origin.y);
+    float deltaZ =
+        delta.x *
+        (position.z - mCoordSystem->mPositionAxis[2].mModedPosition.z) /
+        (positionAxis[2].x - origin.x);
+    position.y -= deltaY;
+    position.z -= deltaZ;
+    isChanged = true;
+  }
+
   // If dragging in X-axis, update position of the coordinate system
-  if (mDraggingX) {
+  else if (mDraggingX) {
     ImVec2 mousePos = ImGui::GetIO().MousePos;
     float deltaPixels = mousePos.x - startX.x;
-    float deltaX = deltaPixels *
-                   (position.x - mCoordSystem->mAxisX.mModedPosition.x) /
-                   (xA.x - origin.x);
+    float deltaX =
+        deltaPixels *
+        (position.x - mCoordSystem->mPositionAxis[0].mModedPosition.x) /
+        (positionAxis[0].x - origin.x);
     position.x -= deltaX;
-    startX = mousePos;
     isChanged = true;
   }
   // If dragging in Y-axis, update position of the coordinate system
   else if (mDraggingY) {
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
     float deltaPixels = mousePos.y - startY.y;
-    float deltaY = deltaPixels *
-                   (position.y - mCoordSystem->mAxisY.mModedPosition.y) /
-                   (yA.y - origin.y);
+    float deltaY =
+        deltaPixels *
+        (position.y - mCoordSystem->mPositionAxis[1].mModedPosition.y) /
+        (positionAxis[1].y - origin.y);
     position.y -= deltaY;
-    startY = mousePos;
     isChanged = true;
   }
   // If dragging in Z-axis, update position of the coordinate system
   else if (mDraggingZ) {
-    ImVec2 mousePos = ImGui::GetIO().MousePos;
     float deltaPixels = mousePos.x - startZ.x;
-    float deltaZ = deltaPixels *
-                   (position.z - mCoordSystem->mAxisZ.mModedPosition.z) /
-                   (zA.x - origin.x);
+    float deltaZ =
+        deltaPixels *
+        (position.z - mCoordSystem->mPositionAxis[2].mModedPosition.z) /
+        (positionAxis[2].x - origin.x);
     position.z -= deltaZ;
-    startZ = mousePos;
     isChanged = true;
+  }
+  if (isChanged) {
+    startX = mousePos;
+    startY = mousePos;
+    startZ = mousePos;
+    startXY = mousePos;
+    startXZ = mousePos;
+    startYZ = mousePos;
   }
 
   if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -727,13 +814,23 @@ bool SceneEditor::handlePositionSystem(glm::vec3 &position) {
     mDraggingZ = false;
   }
 
-  ImGui::GetWindowDrawList()->AddLine(origin, xA, RED_IMGUI, thick);
-  ImGui::GetWindowDrawList()->AddLine(origin, yA, GREEN_IMGUI, thick);
-  ImGui::GetWindowDrawList()->AddLine(origin, zA, BLUE_IMGUI, thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, positionAxis[0], RED_IMGUI,
+                                      thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, positionAxis[1], GREEN_IMGUI,
+                                      thick);
+  ImGui::GetWindowDrawList()->AddLine(origin, positionAxis[2], BLUE_IMGUI,
+                                      thick);
   ImGui::GetWindowDrawList()->AddCircleFilled(origin, radius, WHITE_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(xA, radius, RED_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(yA, radius, GREEN_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(zA, radius, BLUE_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(positionAxis[0], radius,
+                                              RED_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(positionAxis[1], radius,
+                                              GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(positionAxis[2], radius,
+                                              BLUE_IMGUI);
+
+  ImGui::GetWindowDrawList()->AddConvexPolyFilled(xyPlane, 4, BLUE_IMGUI);
+  ImGui::GetWindowDrawList()->AddConvexPolyFilled(xzPlane, 4, GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddConvexPolyFilled(yzPlane, 4, RED_IMGUI);
 
   return isChanged;
 }
@@ -744,14 +841,15 @@ bool SceneEditor::handleRotationSystem(glm::vec3 &rotation) {
   float thick = 2.0f;
   float radius = 10.0f;
 
+  ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
+  ImVec2 rotationGrab[3];
+  for (int i = 0; i < 3; i++) {
+    rotationGrab[i] =
+        worldToScreen(mCoordSystem->mRotationGrab[i].mModedPosition);
+  }
   ImVec2 xR[RESOLUTION];
   ImVec2 yR[RESOLUTION];
   ImVec2 zR[RESOLUTION];
-  ImVec2 grabX = worldToScreen(mCoordSystem->mGrabX.mModedPosition);
-  ImVec2 grabY = worldToScreen(mCoordSystem->mGrabY.mModedPosition);
-  ImVec2 grabZ = worldToScreen(mCoordSystem->mGrabZ.mModedPosition);
-  ImVec2 origin = worldToScreen(mCoordSystem->mCenter.mModedPosition);
-
   for (int i = 0; i < RESOLUTION; i++) {
     xR[i] = worldToScreen(mCoordSystem->mRotX[i].mModedPosition);
     yR[i] = worldToScreen(mCoordSystem->mRotY[i].mModedPosition);
@@ -763,13 +861,13 @@ bool SceneEditor::handleRotationSystem(glm::vec3 &rotation) {
   if (!mRotatingX && !mRotatingY && !mRotatingZ &&
       ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
     ImVec2 mousePos = ImGui::GetIO().MousePos;
-    if (Distance(mousePos, grabX) <= radius) {
+    if (Distance(mousePos, rotationGrab[0]) <= radius) {
       mRotatingX = true;
       startX = mousePos;
-    } else if (Distance(mousePos, grabY) <= radius) {
+    } else if (Distance(mousePos, rotationGrab[1]) <= radius) {
       mRotatingY = true;
       startY = mousePos;
-    } else if (Distance(mousePos, grabZ) <= radius) {
+    } else if (Distance(mousePos, rotationGrab[2]) <= radius) {
       mRotatingZ = true;
       startZ = mousePos;
     }
@@ -820,9 +918,12 @@ bool SceneEditor::handleRotationSystem(glm::vec3 &rotation) {
   ImGui::GetWindowDrawList()->AddLine(yR[last], yR[0], GREEN_IMGUI, thick);
   ImGui::GetWindowDrawList()->AddLine(zR[last], zR[0], BLUE_IMGUI, thick);
   ImGui::GetWindowDrawList()->AddCircleFilled(origin, radius, WHITE_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(grabX, radius, RED_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(grabY, radius, GREEN_IMGUI);
-  ImGui::GetWindowDrawList()->AddCircleFilled(grabZ, radius, BLUE_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(rotationGrab[0], radius,
+                                              RED_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(rotationGrab[1], radius,
+                                              GREEN_IMGUI);
+  ImGui::GetWindowDrawList()->AddCircleFilled(rotationGrab[2], radius,
+                                              BLUE_IMGUI);
 
   return isChanged;
 }

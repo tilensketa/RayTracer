@@ -36,6 +36,7 @@ public:
   void setIndex(int id) { mIndex = id; }
   const int getIndex() const { return mIndex; }
   void setSceneIndex(int id);
+  const int getSceneIndex() const { return mSceneIndex; }
 
   // Meshes
   const std::vector<Mesh> &getMeshes() const { return mMeshes; }

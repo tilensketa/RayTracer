@@ -31,3 +31,6 @@ Added more options to modify and transform model. And added properties of camera
   <img src="./renders/wireframe.png" width="32%" alt="Wireframe">
 </p>
 Added wireframe view, downsampling, faster scene updating and some refactoring.
+
+![betterGui](./renders/betterGui.png)
+Added coordinate system interections for position, rotation and scaling. Improved gui look. Some refactoring.

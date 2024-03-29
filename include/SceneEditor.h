@@ -27,41 +27,56 @@ public:
   ChangeType render(float fps, int dataSize);
 
 private:
-  ChangeType debugWindow(float fps, int dataSize);
-  ChangeType modelWindow();
+  // Windows
+  void debugWindow(float fps, int dataSize);
   ChangeType cameraWindow();
-  ChangeType lightsWindow();
   ChangeType overlayWindow();
+  ChangeType selectorWindow();
+  ChangeType propertiesWindow();
+  ChangeType settingsWindow();
 
-  // Model Window
-  bool loadModel();
-  bool removeModel();
-  void modelSelector();
-  void deselectModel();
+  // Refresh
   void refreshLoadedModels();
+  void refreshLoadedLights();
   void refreshAvailableModels();
+  void refreshDefaultModels();
 
-  bool transformModel();
+  // Deselect
+  void deselectAll();
+
+  // Selector
+  bool modelSelector();
+  bool lightSelector();
+
+  // Handle loading/removing model
+  void handleRemovingModel(int index);
+  bool removeModel();
+  bool handleLoadingModel();
+  void loadModel();
+
+  // Handle loading/removing light
+  void handleRemovingLight(int index);
+  bool removeLight();
+  bool handleLoadingLight();
+  void loadLight();
+
+  // Modify model/light
+  ChangeType editModel();
   bool scaleModel();
   bool rotateModel();
   bool translateModel();
-
   bool materialEditor();
   bool albedoEdit();
 
-  // Lights Window
-  bool loadLight();
-  bool removeLight();
   bool lightEdit();
-  void lightSelector();
-  void deselectLight();
-  void refreshLoadedLights();
+  bool editPointLight();
+  bool editDirectionalLight();
 
-  // Debug Window
+  // Debug
   bool viewportTypeEdit();
   void viewSelected();
 
-  // Overlay Window
+  // Coordinate system
   bool drawCoordinateSystem(glm::vec3 &position, glm::vec3 &rotation,
                             glm::vec3 &scale);
   bool coordinateSystemModeEdit();
@@ -69,12 +84,6 @@ private:
   bool handlePositionSystem(glm::vec3 &position);
   bool handleRotationSystem(glm::vec3 &rotation);
   ImVec2 worldToScreen(const glm::vec3 &worldPos);
-
-  bool editVec3WithColorEdit3(const char *label, int index, glm::vec3 &vec);
-  bool editVec3(const char *text, glm::vec3 &vec, const char *opt[3], float min,
-                float max);
-  bool editSliderFloat(const char *text, float &value, float min, float max);
-  bool editSliderInt(const char *text, int &value, int min, int max);
 
 public:
   std::shared_ptr<Scene> mScene;
@@ -85,6 +94,7 @@ private:
   // Available model
   std::string mModelsFolder;
   std::vector<std::string> mAvailableModelList;
+  std::vector<std::string> mDefaultModelList;
 
   // Select model
   int mSelectedModelIndex = -1;

@@ -318,7 +318,7 @@ void calculateLight(Light light, HitPayload payload, out vec3 lightDirection, ou
   if (light.mType == POINT_LIGHT) {
     lightDirection = normalize(light.mPosition - payload.mWorldPosition);
     float distance = length(light.mPosition - payload.mWorldPosition);
-    intensity = 1.0 / (light.mIntensity + light.mPitch * distance + light.mYaw * distance * distance);
+    intensity = light.mIntensity / distance;
   }
   else if (light.mType == DIRECTIONAL_LIGHT) {
     lightDirection = getDirectionVector(light.mPitch, light.mYaw);

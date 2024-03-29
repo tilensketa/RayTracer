@@ -29,13 +29,12 @@ Application::Application(unsigned int width, unsigned int height)
       std::make_unique<Shader>(SHADERS "shader.vert", SHADERS "shader.frag");
   mSettings = std::make_shared<Settings>();
 
-  mScene->addModel(MODELS "monkey.obj");
+  mScene->addModel(MODELS "Default/Monkey.obj");
   mScene->addLight(LightType::Directional);
 
   mSceneEditor =
       std::make_shared<SceneEditor>(MODELS, mScene, mCamera, mSettings);
 
-  // mData->update(*mCamera, *mScene, *mSettings);
   mData->updateSettings(*mSettings);
   mData->updateCamera(*mCamera);
   mData->updateLights(*mScene);
@@ -45,9 +44,8 @@ Application::Application(unsigned int width, unsigned int height)
 
   mTimeStep = 0.0f;
   initCallbacks();
-  ImGui::CreateContext();
-  ImGui_ImplGlfw_InitForOpenGL(mWindow.get(), true);
-  ImGui_ImplOpenGL3_Init("#version 430 core");
+
+  setupImGui();
 }
 
 Application::~Application() {
@@ -56,6 +54,43 @@ Application::~Application() {
   ImGui::DestroyContext();
 
   glfwTerminate();
+}
+
+void Application::setupImGui() {
+
+  ImGui::CreateContext();
+
+  ImGuiStyle &style = ImGui::GetStyle();
+  ImVec4 *colors = style.Colors;
+  colors[ImGuiCol_WindowBg] = ImVec4(0.1f, 0.1f, 0.1f, 1.0f);
+  colors[ImGuiCol_TitleBg] = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
+  colors[ImGuiCol_Header] = ImVec4(0.3f, 0.3f, 0.3f, 1.0f);
+  colors[ImGuiCol_HeaderHovered] = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+  colors[ImGuiCol_HeaderActive] = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+  colors[ImGuiCol_TitleBgActive] = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
+  colors[ImGuiCol_Button] = ImVec4(0.3f, 0.3f, 0.3f, 1.0f);
+  colors[ImGuiCol_ButtonHovered] = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+  colors[ImGuiCol_ButtonActive] = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+  colors[ImGuiCol_FrameBg] = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
+  colors[ImGuiCol_FrameBgHovered] = ImVec4(0.3f, 0.3f, 0.3f, 1.0f);
+  colors[ImGuiCol_FrameBgActive] = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+  colors[ImGuiCol_ScrollbarBg] = ImVec4(0.1f, 0.1f, 0.1f, 1.0f);
+  colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
+  colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.3f, 0.3f, 0.3f, 1.0f);
+  colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+  colors[ImGuiCol_CheckMark] = ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+  colors[ImGuiCol_SliderGrab] = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+  colors[ImGuiCol_SliderGrabActive] = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+  colors[ImGuiCol_Separator] = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+  colors[ImGuiCol_SeparatorHovered] = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+  colors[ImGuiCol_SeparatorActive] = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
+  colors[ImGuiCol_TextSelectedBg] = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+  colors[ImGuiCol_ResizeGripHovered] =ImVec4(0.5f, 0.5f, 0.5f, 1.0f); 
+  colors[ImGuiCol_ResizeGrip] =ImVec4(0.4f, 0.4f, 0.4f, 1.0f); 
+  colors[ImGuiCol_ResizeGripActive] =ImVec4(0.4f, 0.4f, 0.4f, 1.0f); 
+
+  ImGui_ImplGlfw_InitForOpenGL(mWindow.get(), true);
+  ImGui_ImplOpenGL3_Init("#version 430 core");
 }
 
 void Application::run() {
@@ -67,7 +102,6 @@ void Application::run() {
 
     processInput();
     if (mCamera->update(mWindow.get(), mTimeStep)) {
-      // mData->updateCamera(*mCamera, *mSettings);
       mData->updateCamera(*mCamera);
       mDataUBO->update(*mData);
     }
@@ -83,7 +117,6 @@ void Application::run() {
 
     if (mShowEditor) {
       ChangeType change = mSceneEditor->render(fps, mData->getFloatDataSize());
-      // mData->update(*mCamera, *mScene, *mSettings);
       if (change == ChangeType::BVHType) {
         mData->updateBVH(*mScene, *mSettings);
         mData->updateMaterial(*mScene, false);
@@ -173,7 +206,6 @@ void Application::framebuffer_size_callback(GLFWwindow *window, int width,
   if (app) {
     glViewport(0, 0, width, height);
     app->mCamera->setResolution(width, height);
-    // app->mData->updateCamera(*(app->mCamera), *(app->mSettings));
     app->mData->updateCamera(*(app->mCamera));
     app->mDataUBO->update(*(app->mData));
   }

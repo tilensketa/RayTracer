@@ -9,7 +9,8 @@ public:
   void clean();
 
   static BVHNode *buildBVH(const std::vector<Triangle> &triangles,
-                           const int maxDepth, int depth);
+                           const int maxDepth, const int maxTrianglesInLeaf,
+                           int depth);
   static BVHNode *createLeafNode(const std::vector<Triangle> &triangles);
 
   // Node size

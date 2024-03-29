@@ -200,6 +200,7 @@ set(SOURCES
     src/SceneEditor.cpp
     src/Scene.cpp
     src/CoordinateSystem.cpp
+    src/Edit.cpp
     # Add other source files here if any
 )
 

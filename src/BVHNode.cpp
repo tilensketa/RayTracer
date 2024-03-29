@@ -41,9 +41,10 @@ BVHNode *BVHNode::createLeafNode(const std::vector<Triangle> &triangles) {
 }
 
 BVHNode *BVHNode::buildBVH(const std::vector<Triangle> &triangles,
-                           const int maxDepth, int depth) {
+                           const int maxDepth, int maxTrianglesInLeaf,
+                           int depth) {
   mIdCounter++;
-  if (depth == maxDepth || triangles.size() <= 5) {
+  if (depth == maxDepth || triangles.size() <= maxTrianglesInLeaf) {
     return createLeafNode(triangles);
   }
 
@@ -79,9 +80,9 @@ BVHNode *BVHNode::buildBVH(const std::vector<Triangle> &triangles,
     }
   }
 
-  node->mLeft = buildBVH(leftTriangles, maxDepth, depth + 1);
+  node->mLeft = buildBVH(leftTriangles, maxDepth, maxTrianglesInLeaf, depth + 1);
   node->mRightID = mIdCounter + 1;
-  node->mRight = buildBVH(rightTriangles, maxDepth, depth + 1);
+  node->mRight = buildBVH(rightTriangles, maxDepth, maxTrianglesInLeaf, depth + 1);
 
   return node;
 }

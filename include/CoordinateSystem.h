@@ -11,20 +11,22 @@ struct CoordinateSystem {
   glm::vec3 mPosition = glm::vec3(0);
   glm::vec3 mRotation = glm::vec3(0);
 
+  Vertex mCenter;
+
   // Rotation
+  Vertex mRotationGrab[3];
   Vertex mRotX[RESOLUTION];
   Vertex mRotY[RESOLUTION];
   Vertex mRotZ[RESOLUTION];
 
-  Vertex mGrabX;
-  Vertex mGrabY;
-  Vertex mGrabZ;
+  // Position
+  Vertex mPositionAxis[3];
+  Vertex mPlaneXY[5];
+  Vertex mPlaneXZ[5];
+  Vertex mPlaneYZ[5];
 
-  // Position & Scale
-  Vertex mCenter;
-  Vertex mAxisX;
-  Vertex mAxisY;
-  Vertex mAxisZ;
+  // Scale
+  Vertex mScaleAxis[3];
 
   float mSize;
   Mode mMode;

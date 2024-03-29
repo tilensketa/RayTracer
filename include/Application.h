@@ -20,6 +20,7 @@ public:
 private:
   std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>
   initWindow(unsigned int width, unsigned int height);
+  void setupImGui();
   void processInput();
   void saveImage(const std::string &filename, int width, int height);
 

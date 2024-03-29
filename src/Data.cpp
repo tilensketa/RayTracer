@@ -28,8 +28,8 @@ void Data::updateBVH(const Scene &scene, const Settings &settings) {
 
   // Add bvh nodes and triangles
   BVHNode::mIdCounter = -1;
-  BVHNode *node =
-      BVHNode::buildBVH(scene.getTriangles(), settings.mMaxDepth, 0);
+  BVHNode *node = BVHNode::buildBVH(scene.getTriangles(), settings.mMaxDepth,
+                                    settings.mMaxTrianglesInLeaf, 0);
   std::vector<int> sizes = BVHNode::calculateNodeSizes(node);
   int numberOfNodes = sizes.size();
 
